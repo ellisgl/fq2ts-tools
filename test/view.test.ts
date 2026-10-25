@@ -120,3 +120,9 @@ test('screen labels include names', () => {
     world.setName(1, 'Frog Pond');
     expect(renderHtml(world)).toContain('Screen 1: Frog Pond (land)');
 });
+
+test('screen lists stay within the world grid', () => {
+    expect(() => parseScreenList('1-100000000')).toThrow('Screens are numbered 1 to 1920: "1-100000000"');
+    expect(() => parseScreenList('0')).toThrow('Screens are numbered 1 to 1920');
+    expect([...parseScreenList('1920')]).toEqual([1920]);
+});

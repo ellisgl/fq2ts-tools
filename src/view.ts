@@ -6,7 +6,7 @@
 import { writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { World } from '../engine/world.ts';
+import { GRID_HEIGHT, GRID_WIDTH, World } from '../engine/world.ts';
 import content from '../content/index.ts';
 import { renderHtml } from './html.ts';
 
@@ -31,6 +31,11 @@ export function parseScreenList(list: string): Set<number> {
         if (to < from) {
             throw new Error(`Backwards range: "${part}"`);
         }
+
+        if (from < 1 || to > GRID_WIDTH * GRID_HEIGHT) {
+            throw new Error(`Screens are numbered 1 to ${GRID_WIDTH * GRID_HEIGHT}: "${part}"`);
+        }
+
         for (let n = from; n <= to; n++) {
             screens.add(n);
         }
