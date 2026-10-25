@@ -2,7 +2,7 @@
 // screens are created, copied, deleted and opened for editing.
 
 import { at } from '../../engine/assert.ts';
-import { draw, width } from '../../engine/text.ts';
+import { draw, escapeMarkup, width } from '../../engine/text.ts';
 import { choose, textInput } from '../../engine/ui.ts';
 import type { Color, Screen } from '../../engine/screen.ts';
 import { isMouse, type Key, type MouseInput, type Terminal } from '../../engine/terminal.ts';
@@ -302,7 +302,7 @@ export class Editor {
         }
         this.world.setName(this.current, name);
         this.changed();
-        this.message = name ? `Screen ${this.current} is now called "${name}".` : `Screen ${this.current} has no name now.`;
+        this.message = name ? `Screen ${this.current} is now called "${escapeMarkup(name)}".` : `Screen ${this.current} has no name now.`;
     }
 
     // Cycles the screen's encounter table: "default" (not named in the map
@@ -388,7 +388,7 @@ export class Editor {
         const monsters = kind !== undefined && KINDS[kind].monsters ? ` {gray}monsters${table === undefined ? '' : `: ${table}`}` : '';
         const what = kind === undefined ? '{darkgray}empty' : `{lightcyan}${KINDS[kind].name}${monsters}`;
         const name = this.world.name(this.current);
-        const about = `{white}Screen ${this.current}${name ? ` {yellow}${name}{white},` : ''} ${what}${this.modified ? ' {lightred}*' : ''}`;
+        const about = `{white}Screen ${this.current}${name ? ` {yellow}${escapeMarkup(name)}{white},` : ''} ${what}${this.modified ? ' {lightred}*' : ''}`;
         const hints = '   {darkgray}Enter edit  N new  C/V copy  D del  ? help';
         const status = this.message === null ? (width(about + hints) <= 80 ? about + hints : about) : `{yellow}${this.message}`;
         draw(screen, status, { y: 25, bg: 0 });
