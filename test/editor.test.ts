@@ -4,7 +4,7 @@ import { ScreenEditor, line, type EditorState } from '../../tools/editor/screen-
 import { Editor, type SaveResult } from '../../tools/editor/editor.ts';
 import { main } from '../../tools/edit.ts';
 import { World, blankMap, type MapCell } from '../../engine/world.ts';
-import { FakeTerminal, makeMap, makeWorld, mouse, row, screenText, tempDir, typed, type Step } from '../helpers.ts';
+import { caught, FakeTerminal, makeMap, makeWorld, mouse, row, screenText, tempDir, typed, type Step } from '../helpers.ts';
 
 // Steps, or a function that makes them from the terminal they'll run on
 // (so a step can look at the screen).
@@ -661,8 +661,7 @@ describe('the edit command', () => {
         term.stop = () => {
             stopped = true;
         };
-        expect(main(['-m', dir], term, () => undefined)).rejects.toThrow('ran out of keys');
-        await Promise.resolve();
+        expect(await caught(main(['-m', dir], term, () => undefined))).toEqual(new Error('The test ran out of keys.'));
         expect(stopped).toBe(true);
     });
 });
