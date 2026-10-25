@@ -30,6 +30,8 @@ export interface EditorOptions {
   world: World;
   // "x,y" trigger tiles by screen (shown so they aren't painted over by accident).
   triggers?: ReadonlyMap<number, ReadonlySet<string>>;
+  // The encounter tables in data/monsters.json, for E to cycle through.
+  encounterTables?: readonly string[];
   save: (world: World) => SaveResult;
 }
 
@@ -74,6 +76,7 @@ export const OVERVIEW_HELP = [
   "{white}C / V   {gray}copy this screen / paste over this one",
   "{white}D       {gray}delete this screen",
   "{white}K       {gray}change this screen's kind",
+  "{white}E       {gray}change which encounter table its monsters come from",
   "{white}S       {gray}save to the map folder",
   "{white}Q, Esc  {gray}quit",
   "{gray}With the mouse: click a screen to select it, and again to open it.",
@@ -88,6 +91,7 @@ export class Editor {
   private readonly world: World;
   private readonly triggers: ReadonlyMap<number, ReadonlySet<string>>;
   private readonly saveWorld: (world: World) => SaveResult;
+  private readonly encounterTables: readonly string[];
   private readonly state: EditorState = {
     brush: { ch: "♠", fg: 10, bg: 2, solid: false },
     clipboard: null,
@@ -99,12 +103,13 @@ export class Editor {
   private modified = false;
   private message: string | null = null;
 
-  constructor({ term, world, triggers = new Map(), save }: EditorOptions) {
+  constructor({ term, world, triggers = new Map(), encounterTables = ["default"], save }: EditorOptions) {
     this.term = term;
     this.screen = term.screen;
     this.world = world;
     this.triggers = triggers;
     this.saveWorld = save;
+    this.encounterTables = encounterTables;
     this.current = world.screens()[0] ?? 1;
   }
 
@@ -185,6 +190,9 @@ export class Editor {
       case "k":
         this.nextKind();
         break;
+      case "e":
+        this.nextEncounters();
+        break;
       case "s":
         this.save();
         break;
@@ -258,6 +266,18 @@ export class Editor {
     this.message = `Deleted screen ${this.current}.`;
   }
 
+  // Cycles the screen's encounter table: "default" (not named in the map
+  // file), then each other table in turn.
+  private nextEncounters(): void {
+    if (!this.world.has(this.current)) return;
+    const others = this.encounterTables.filter((t) => t !== "default");
+    const now = this.world.encounters(this.current);
+    const next = now === undefined ? others[0] : others[others.indexOf(now) + 1];
+    this.world.setEncounters(this.current, next);
+    this.changed();
+    this.message = `Screen ${this.current}'s monsters now come from the "${next ?? "default"}" table.`;
+  }
+
   private nextKind(): void {
     const kind = this.world.kind(this.current);
     if (kind === undefined) return;
@@ -314,7 +334,9 @@ export class Editor {
     }
     screen.fillRow(25, 0);
     const kind = this.world.kind(this.current);
-    const what = kind === undefined ? "{darkgray}empty" : `{lightcyan}${KINDS[kind].name}${KINDS[kind].monsters ? " {gray}monsters" : ""}`;
+    const table = this.world.encounters(this.current);
+    const monsters = kind !== undefined && KINDS[kind].monsters ? ` {gray}monsters${table === undefined ? "" : `: ${table}`}` : "";
+    const what = kind === undefined ? "{darkgray}empty" : `{lightcyan}${KINDS[kind].name}${monsters}`;
     const status = this.message === null ? `{white}Screen ${this.current} ${what}{darkgray}${this.modified ? " {lightred}*" : ""}   {darkgray}Enter edit  N new  C/V copy  D del  ? help` : `{yellow}${this.message}`;
     draw(screen, status, { y: 25, bg: 0 });
     const { col, row } = gridPosition(this.current);

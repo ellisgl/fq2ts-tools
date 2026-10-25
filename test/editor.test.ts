@@ -755,3 +755,38 @@ test("the edit command turns the mouse on, and off again", async () => {
   expect(term.out.written).toContain("\x1b[?1006h");
   expect(term.out.written).toContain("\x1b[?1006l");
 });
+
+describe("encounter tables in the overview", () => {
+  test("E cycles a screen's table, and the status line shows it", async () => {
+    const world = makeWorld(makeMap(1, 5));
+    const term = new FakeTerminal();
+    const editor = new Editor({ term, world, encounterTables: ["default", "forest", "swamp"], save: () => ({ written: [], deleted: [] }) });
+    term.feed(
+      "e",
+      () => {
+        expect(row(term.screen, 25)).toBe('Screen 1\'s monsters now come from the "forest" table.');
+        return "x";
+      },
+      () => {
+        expect(row(term.screen, 25)).toContain("Screen 1 land monsters: forest *");
+        return "e";
+      },
+      "e",
+      () => {
+        expect(row(term.screen, 25)).toBe('Screen 1\'s monsters now come from the "default" table.');
+        return "q";
+      },
+      "n",
+    );
+    await editor.run();
+    expect(world.encounters(1)).toBeUndefined();
+  });
+
+  test("E does nothing on an empty spot, and with only the default table", async () => {
+    const world = makeWorld(makeMap(1, 5));
+    const term = new FakeTerminal(["right", "e", "left", "e", "q", "n"]);
+    await new Editor({ term, world, save: () => ({ written: [], deleted: [] }) }).run();
+    expect(world.encounters(1)).toBeUndefined();
+    expect(world.has(2)).toBe(false);
+  });
+});
