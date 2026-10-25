@@ -3,95 +3,97 @@
 // keep their CP437 characters and CGA colours. The page can outline solid
 // cells and trigger tiles, and zoom.
 
-import { at } from "../engine/assert.ts";
-import { RGB, type Color } from "../engine/screen.ts";
-import { KINDS, MAP_HEIGHT, MAP_WIDTH, gridPosition, type MapCell, type World } from "../engine/world.ts";
+import { at } from '../engine/assert.ts';
+import { RGB, type Color } from '../engine/screen.ts';
+import { KINDS, MAP_HEIGHT, MAP_WIDTH, gridPosition, type MapCell, type World } from '../engine/world.ts';
 
 export interface RenderOptions {
-  title?: string;
-  // Only these screens (default: all of them).
-  screens?: ReadonlySet<number>;
-  // "x,y" tiles that have a trigger, by screen.
-  triggers?: ReadonlyMap<number, ReadonlySet<string>>;
+    title?: string;
+    // Only these screens (default: all of them).
+    screens?: ReadonlySet<number>;
+    // "x,y" tiles that have a trigger, by screen.
+    triggers?: ReadonlyMap<number, ReadonlySet<string>>;
 }
 
-const HEX = "0123456789ABCDEF";
+const HEX = '0123456789ABCDEF';
 
 const escapeHtml = (text: string): string => text.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
 
 const css = (c: Color): string => {
-  const [r, g, b] = at(RGB, c);
-  return `rgb(${r},${g},${b})`;
+    const [r, g, b] = at(RGB, c);
+    return `rgb(${r},${g},${b})`;
 };
 
 function screenLabel(world: World, screen: number): string {
-  const kind = world.kind(screen);
-  const name = world.name(screen);
-  const label = name ? `Screen ${screen}: ${name}` : `Screen ${screen}`;
-  return kind === undefined ? label : `${label} (${KINDS[kind].name})`;
+    const kind = world.kind(screen);
+    const name = world.name(screen);
+    const label = name ? `Screen ${screen}: ${name}` : `Screen ${screen}`;
+    return kind === undefined ? label : `${label} (${KINDS[kind].name})`;
 }
 
 // One screen as a <pre>, with runs of same-looking cells in one span.
 function renderScreen(world: World, screen: number, triggers: ReadonlySet<string> | undefined): string {
-  const lines: string[] = [];
-  for (let y = 1; y <= MAP_HEIGHT; y++) {
-    let line = "";
-    let run = "";
-    let runClass = "";
-    const flush = (): void => {
-      if (run) line += `<span class="${runClass}">${escapeHtml(run)}</span>`;
-      run = "";
-    };
-    for (let x = 1; x <= MAP_WIDTH; x++) {
-      const cell: MapCell = world.cell(screen, x, y);
-      const cls = `f${HEX.charAt(cell.fg)} b${HEX.charAt(cell.bg)}${cell.solid ? " s" : ""}`;
-      if (triggers?.has(`${x},${y}`)) {
+    const lines: string[] = [];
+    for (let y = 1; y <= MAP_HEIGHT; y++) {
+        let line = '';
+        let run = '';
+        let runClass = '';
+        const flush = (): void => {
+            if (run) {
+                line += `<span class="${runClass}">${escapeHtml(run)}</span>`;
+            }
+            run = '';
+        };
+        for (let x = 1; x <= MAP_WIDTH; x++) {
+            const cell: MapCell = world.cell(screen, x, y);
+            const cls = `f${HEX.charAt(cell.fg)} b${HEX.charAt(cell.bg)}${cell.solid ? ' s' : ''}`;
+            if (triggers?.has(`${x},${y}`)) {
+                flush();
+                line += `<span class="${cls} t" title="Trigger at ${x},${y}">${escapeHtml(cell.ch)}</span>`;
+                runClass = '';
+                continue;
+            }
+            if (cls !== runClass) {
+                flush();
+                runClass = cls;
+            }
+            run += cell.ch;
+        }
         flush();
-        line += `<span class="${cls} t" title="Trigger at ${x},${y}">${escapeHtml(cell.ch)}</span>`;
-        runClass = "";
-        continue;
-      }
-      if (cls !== runClass) {
-        flush();
-        runClass = cls;
-      }
-      run += cell.ch;
+        lines.push(line);
     }
-    flush();
-    lines.push(line);
-  }
-  return `<pre class="screen" title="${escapeHtml(screenLabel(world, screen))}">${lines.join("\n")}</pre>`;
+    return `<pre class="screen" title="${escapeHtml(screenLabel(world, screen))}">${lines.join('\n')}</pre>`;
 }
 
-function figure(world: World, screen: number, triggers: RenderOptions["triggers"]): string {
-  return `<figure data-screen="${screen}">${renderScreen(world, screen, triggers?.get(screen))}<figcaption>${escapeHtml(screenLabel(world, screen))}</figcaption></figure>`;
+function figure(world: World, screen: number, triggers: RenderOptions['triggers']): string {
+    return `<figure data-screen="${screen}">${renderScreen(world, screen, triggers?.get(screen))}<figcaption>${escapeHtml(screenLabel(world, screen))}</figcaption></figure>`;
 }
 
-export function renderHtml(world: World, { title = "Final Quest 2 — World", screens, triggers }: RenderOptions = {}): string {
-  const shown = world.screens().filter((n) => !screens || screens.has(n));
-  const outdoor = shown.filter((n) => world.isOutdoors(n));
-  const indoor = shown.filter((n) => !world.isOutdoors(n));
+export function renderHtml(world: World, { title = 'Final Quest 2 — World', screens, triggers }: RenderOptions = {}): string {
+    const shown = world.screens().filter((n) => !screens || screens.has(n));
+    const outdoor = shown.filter((n) => world.isOutdoors(n));
+    const indoor = shown.filter((n) => !world.isOutdoors(n));
 
-  let worldGrid = "";
-  if (outdoor.length) {
-    const spots = outdoor.map((n) => ({ n, ...gridPosition(n) }));
-    const cols = spots.map((s) => s.col);
-    const rows = spots.map((s) => s.row);
-    const [left, right, top, bottom] = [Math.min(...cols), Math.max(...cols), Math.min(...rows), Math.max(...rows)];
-    const cells: string[] = [];
-    for (const s of spots) {
-      cells.push(figure(world, s.n, triggers).replace("<figure", `<figure style="grid-column:${s.col - left + 1};grid-row:${s.row - top + 1}"`));
+    let worldGrid = '';
+    if (outdoor.length) {
+        const spots = outdoor.map((n) => ({ n, ...gridPosition(n) }));
+        const cols = spots.map((s) => s.col);
+        const rows = spots.map((s) => s.row);
+        const [left, right, top, bottom] = [Math.min(...cols), Math.max(...cols), Math.min(...rows), Math.max(...rows)];
+        const cells: string[] = [];
+        for (const s of spots) {
+            cells.push(figure(world, s.n, triggers).replace('<figure', `<figure style="grid-column:${s.col - left + 1};grid-row:${s.row - top + 1}"`));
+        }
+        worldGrid = `<section><h2>World</h2><p class="note">Screens ${outdoor.length}, grid columns ${left}–${right}, rows ${top}–${bottom}. Hover a screen for its number.</p><div class="world" style="grid-template-columns:repeat(${right - left + 1},max-content)">${cells.join('')}</div></section>`;
     }
-    worldGrid = `<section><h2>World</h2><p class="note">Screens ${outdoor.length}, grid columns ${left}–${right}, rows ${top}–${bottom}. Hover a screen for its number.</p><div class="world" style="grid-template-columns:repeat(${right - left + 1},max-content)">${cells.join("")}</div></section>`;
-  }
 
-  const interiors = indoor.length
-    ? `<section><h2>Interiors</h2><div class="rooms">${indoor.map((n) => figure(world, n, triggers)).join("")}</div></section>`
-    : "";
+    const interiors = indoor.length
+        ? `<section><h2>Interiors</h2><div class="rooms">${indoor.map((n) => figure(world, n, triggers)).join('')}</div></section>`
+        : '';
 
-  const colours = Array.from({ length: 16 }, (_, c) => `.f${HEX.charAt(c)}{color:${css(c)}}`).join("") + Array.from({ length: 8 }, (_, c) => `.b${HEX.charAt(c)}{background:${css(c)}}`).join("");
+    const colours = Array.from({ length: 16 }, (_, c) => `.f${HEX.charAt(c)}{color:${css(c)}}`).join('') + Array.from({ length: 8 }, (_, c) => `.b${HEX.charAt(c)}{background:${css(c)}}`).join('');
 
-  return `<!doctype html>
+    return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">

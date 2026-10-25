@@ -3,13 +3,13 @@
 //
 //   bun tools/generate.ts [--screens 8-14] [--seed 42] [--preview out.html] [--dry-run] [--force]
 
-import { writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
-import { parseArgs } from "node:util";
-import { GRID_HEIGHT, GRID_WIDTH, World, gridPosition } from "../engine/world.ts";
-import { generate, isBlank } from "./generator/generate.ts";
-import { renderHtml } from "./html.ts";
-import { contentTriggers, parseScreenList } from "./view.ts";
+import { writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { parseArgs } from 'node:util';
+import { GRID_HEIGHT, GRID_WIDTH, World, gridPosition } from '../engine/world.ts';
+import { generate, isBlank } from './generator/generate.ts';
+import { renderHtml } from './html.ts';
+import { contentTriggers, parseScreenList } from './view.ts';
 
 const USAGE = `Usage: bun tools/generate.ts [options]
 
@@ -28,82 +28,92 @@ outdoor screen is filled.
 
 // The screens next to these (and these), for previews.
 function withNeighbours(world: World, screens: readonly number[]): Set<number> {
-  const out = new Set(screens);
-  for (const n of screens) {
-    const { col, row } = gridPosition(n);
-    for (let dr = -1; dr <= 1; dr++) {
-      for (let dc = -1; dc <= 1; dc++) {
-        const c = col + dc;
-        const r = row + dr;
-        const m = (r - 1) * GRID_WIDTH + c;
-        if (c >= 1 && c <= GRID_WIDTH && r >= 1 && r <= GRID_HEIGHT && world.isOutdoors(m)) out.add(m);
-      }
+    const out = new Set(screens);
+    for (const n of screens) {
+        const { col, row } = gridPosition(n);
+        for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+                const c = col + dc;
+                const r = row + dr;
+                const m = (r - 1) * GRID_WIDTH + c;
+                if (c >= 1 && c <= GRID_WIDTH && r >= 1 && r <= GRID_HEIGHT && world.isOutdoors(m)) {
+                    out.add(m);
+                }
+            }
+        }
     }
-  }
-  return out;
+    return out;
 }
 
 export function main(args: readonly string[], log: (line: string) => void = console.log, randomSeed: () => number = () => Math.floor(Math.random() * 1e6)): number {
-  const { values } = parseArgs({
-    args: [...args],
-    options: {
-      screens: { type: "string", short: "s" },
-      seed: { type: "string" },
-      force: { type: "boolean", short: "f", default: false },
-      preview: { type: "string", short: "p" },
-      "dry-run": { type: "boolean", short: "n", default: false },
-      maps: { type: "string", short: "m", default: join(import.meta.dir, "..", "data", "maps") },
-      help: { type: "boolean", short: "h", default: false },
-    },
-  });
-  if (values.help) {
-    log(USAGE);
-    return 0;
-  }
-  if (values.seed !== undefined && !/^\d+$/.test(values.seed)) throw new Error(`The seed must be a whole number, not "${values.seed}".`);
-  const seed = values.seed === undefined ? randomSeed() : Number(values.seed);
-  const dir = resolve(values.maps);
-  const world = World.load(dir);
-
-  let screens: number[];
-  if (values.screens === undefined) {
-    screens = world.screens().filter((n) => world.isOutdoors(n) && isBlank(world, n));
-    if (!screens.length) {
-      log("There are no blank outdoor screens to fill. Create some in the editor (N), or name screens with --screens.");
-      return 1;
+    const { values } = parseArgs({
+        args: [...args],
+        options: {
+            screens: { type: 'string', short: 's' },
+            seed: { type: 'string' },
+            force: { type: 'boolean', short: 'f', default: false },
+            preview: { type: 'string', short: 'p' },
+            'dry-run': { type: 'boolean', short: 'n', default: false },
+            maps: { type: 'string', short: 'm', default: join(import.meta.dir, '..', 'data', 'maps') },
+            help: { type: 'boolean', short: 'h', default: false },
+        },
+    });
+    if (values.help) {
+        log(USAGE);
+        return 0;
     }
-  } else {
-    screens = [...parseScreenList(values.screens)];
-    const missing = screens.filter((n) => !world.has(n));
-    if (missing.length) throw new Error(`These screens don't exist yet: ${missing.join(", ")}. Create them in the editor first, so they have a kind.`);
-    const indoors = screens.filter((n) => !world.isOutdoors(n));
-    if (indoors.length) throw new Error(`These screens are interiors, which aren't generated: ${indoors.join(", ")}.`);
-    const made = screens.filter((n) => !isBlank(world, n));
-    if (made.length && !values.force) throw new Error(`These screens already have something on them: ${made.join(", ")}. Use --force to replace them.`);
-  }
+    if (values.seed !== undefined && !/^\d+$/.test(values.seed)) {
+        throw new Error(`The seed must be a whole number, not "${values.seed}".`);
+    }
+    const seed = values.seed === undefined ? randomSeed() : Number(values.seed);
+    const dir = resolve(values.maps);
+    const world = World.load(dir);
 
-  generate(world, screens, { seed });
-  log(`Generated ${screens.length} screen${screens.length === 1 ? "" : "s"} (${screens.join(", ")}) with seed ${seed}.`);
+    let screens: number[];
+    if (values.screens === undefined) {
+        screens = world.screens().filter((n) => world.isOutdoors(n) && isBlank(world, n));
+        if (!screens.length) {
+            log('There are no blank outdoor screens to fill. Create some in the editor (N), or name screens with --screens.');
+            return 1;
+        }
+    } else {
+        screens = [...parseScreenList(values.screens)];
+        const missing = screens.filter((n) => !world.has(n));
+        if (missing.length) {
+            throw new Error(`These screens don't exist yet: ${missing.join(', ')}. Create them in the editor first, so they have a kind.`);
+        }
+        const indoors = screens.filter((n) => !world.isOutdoors(n));
+        if (indoors.length) {
+            throw new Error(`These screens are interiors, which aren't generated: ${indoors.join(', ')}.`);
+        }
+        const made = screens.filter((n) => !isBlank(world, n));
+        if (made.length && !values.force) {
+            throw new Error(`These screens already have something on them: ${made.join(', ')}. Use --force to replace them.`);
+        }
+    }
 
-  if (values.preview !== undefined) {
-    const out = resolve(values.preview);
-    writeFileSync(out, renderHtml(world, { title: `Generated, seed ${seed}`, screens: withNeighbours(world, screens), triggers: contentTriggers() }));
-    log(`Wrote a preview to ${out}`);
-  }
-  if (values["dry-run"]) {
-    log("Dry run: nothing saved.");
-  } else {
-    const { written } = world.save(dir);
-    log(`Saved ${written.length} file${written.length === 1 ? "" : "s"} to ${dir}`);
-  }
-  return 0;
+    generate(world, screens, { seed });
+    log(`Generated ${screens.length} screen${screens.length === 1 ? '' : 's'} (${screens.join(', ')}) with seed ${seed}.`);
+
+    if (values.preview !== undefined) {
+        const out = resolve(values.preview);
+        writeFileSync(out, renderHtml(world, { title: `Generated, seed ${seed}`, screens: withNeighbours(world, screens), triggers: contentTriggers() }));
+        log(`Wrote a preview to ${out}`);
+    }
+    if (values['dry-run']) {
+        log('Dry run: nothing saved.');
+    } else {
+        const { written } = world.save(dir);
+        log(`Saved ${written.length} file${written.length === 1 ? '' : 's'} to ${dir}`);
+    }
+    return 0;
 }
 
 if (import.meta.main) {
-  try {
-    process.exit(main(process.argv.slice(2)));
-  } catch (err) {
-    console.error(err instanceof Error ? err.message : err);
-    process.exit(1);
-  }
+    try {
+        process.exit(main(process.argv.slice(2)));
+    } catch (err) {
+        console.error(err instanceof Error ? err.message : err);
+        process.exit(1);
+    }
 }
