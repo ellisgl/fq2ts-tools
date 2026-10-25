@@ -330,3 +330,14 @@ describe("the generate command", () => {
     expect(lines[0]).toContain("Usage: bun tools/generate.ts");
   });
 });
+
+test("generated screens record their terrain", () => {
+  const { world, screens } = block([[5, 0, 5], [5, 3, 5], [5, 5, 5]]);
+  generate(world, screens, { seed: 2 });
+  for (const n of screens) {
+    for (const c of cells(world, n)) {
+      const expected = c.bg === 1 ? "water" : c.ch === "∩" ? "mountain" : c.solid ? "forest" : c.bg === 6 ? "road" : "grass";
+      expect(c.terrain).toBe(expected);
+    }
+  }
+});

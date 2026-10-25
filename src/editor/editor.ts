@@ -2,8 +2,8 @@
 // screens are created, copied, deleted and opened for editing.
 
 import { at } from "../../engine/assert.ts";
-import { draw } from "../../engine/text.ts";
-import { choose } from "../../engine/ui.ts";
+import { draw, width } from "../../engine/text.ts";
+import { choose, textInput } from "../../engine/ui.ts";
 import type { Color, Screen } from "../../engine/screen.ts";
 import { isMouse, type Key, type MouseInput, type Terminal } from "../../engine/terminal.ts";
 import {
@@ -51,15 +51,15 @@ const OVERVIEW: Readonly<Record<MapKind, readonly [string, Color, Color]>> = {
 
 // What a new screen of each kind is filled with.
 const FILL: Readonly<Record<MapKind, MapCell>> = {
-  0: { ch: " ", fg: 15, bg: 1, solid: true },
-  1: { ch: " ", fg: 15, bg: 2, solid: false },
-  2: { ch: " ", fg: 15, bg: 0, solid: false },
-  3: { ch: " ", fg: 15, bg: 7, solid: false },
-  4: { ch: " ", fg: 15, bg: 2, solid: false },
-  5: { ch: " ", fg: 15, bg: 2, solid: false },
-  6: { ch: " ", fg: 15, bg: 2, solid: false },
-  7: { ch: " ", fg: 15, bg: 7, solid: false },
-  8: { ch: " ", fg: 15, bg: 1, solid: true },
+  0: { ch: " ", fg: 15, bg: 1, solid: true, terrain: "water" },
+  1: { ch: " ", fg: 15, bg: 2, solid: false, terrain: "grass" },
+  2: { ch: " ", fg: 15, bg: 0, solid: false, terrain: "floor" },
+  3: { ch: " ", fg: 15, bg: 7, solid: false, terrain: "floor" },
+  4: { ch: " ", fg: 15, bg: 2, solid: false, terrain: "grass" },
+  5: { ch: " ", fg: 15, bg: 2, solid: false, terrain: "grass" },
+  6: { ch: " ", fg: 15, bg: 2, solid: false, terrain: "grass" },
+  7: { ch: " ", fg: 15, bg: 7, solid: false, terrain: "floor" },
+  8: { ch: " ", fg: 15, bg: 1, solid: true, terrain: "water" },
 };
 
 const kindLabel = (kind: MapKind): string => `${kind}  ${KINDS[kind].name}${KINDS[kind].monsters ? ", monsters" : ""}`;
@@ -77,6 +77,7 @@ export const OVERVIEW_HELP = [
   "{white}D       {gray}delete this screen",
   "{white}K       {gray}change this screen's kind",
   "{white}E       {gray}change which encounter table its monsters come from",
+  "{white}A       {gray}name this screen (shown when the player arrives)",
   "{white}S       {gray}save to the map folder",
   "{white}Q, Esc  {gray}quit",
   "{gray}With the mouse: click a screen to select it, and again to open it.",
@@ -93,9 +94,9 @@ export class Editor {
   private readonly saveWorld: (world: World) => SaveResult;
   private readonly encounterTables: readonly string[];
   private readonly state: EditorState = {
-    brush: { ch: "♠", fg: 10, bg: 2, solid: false },
+    brush: { ch: "♠", fg: 10, bg: 2, solid: true, terrain: "forest" },
     clipboard: null,
-    showSolid: false,
+    overlay: "none",
     showTriggers: true,
   };
   private current: number;
@@ -193,6 +194,9 @@ export class Editor {
       case "e":
         this.nextEncounters();
         break;
+      case "a":
+        await this.rename();
+        break;
       case "s":
         this.save();
         break;
@@ -266,6 +270,17 @@ export class Editor {
     this.message = `Deleted screen ${this.current}.`;
   }
 
+  private async rename(): Promise<void> {
+    if (!this.world.has(this.current)) return;
+    this.prompt("Name:");
+    const old = this.world.name(this.current);
+    const name = (await textInput(this.term, { x: 7, y: 25, length: 31, value: old, fg: 15, bg: 1 })).trim();
+    if (name === old) return;
+    this.world.setName(this.current, name);
+    this.changed();
+    this.message = name ? `Screen ${this.current} is now called "${name}".` : `Screen ${this.current} has no name now.`;
+  }
+
   // Cycles the screen's encounter table: "default" (not named in the map
   // file), then each other table in turn.
   private nextEncounters(): void {
@@ -337,7 +352,10 @@ export class Editor {
     const table = this.world.encounters(this.current);
     const monsters = kind !== undefined && KINDS[kind].monsters ? ` {gray}monsters${table === undefined ? "" : `: ${table}`}` : "";
     const what = kind === undefined ? "{darkgray}empty" : `{lightcyan}${KINDS[kind].name}${monsters}`;
-    const status = this.message === null ? `{white}Screen ${this.current} ${what}{darkgray}${this.modified ? " {lightred}*" : ""}   {darkgray}Enter edit  N new  C/V copy  D del  ? help` : `{yellow}${this.message}`;
+    const name = this.world.name(this.current);
+    const about = `{white}Screen ${this.current}${name ? ` {yellow}${name}{white},` : ""} ${what}${this.modified ? " {lightred}*" : ""}`;
+    const hints = "   {darkgray}Enter edit  N new  C/V copy  D del  ? help";
+    const status = this.message === null ? (width(about + hints) <= 80 ? about + hints : about) : `{yellow}${this.message}`;
     draw(screen, status, { y: 25, bg: 0 });
     const { col, row } = gridPosition(this.current);
     screen.cursor = { x: col, y: row };

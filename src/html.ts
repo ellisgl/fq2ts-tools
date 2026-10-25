@@ -26,7 +26,9 @@ const css = (c: Color): string => {
 
 function screenLabel(world: World, screen: number): string {
   const kind = world.kind(screen);
-  return kind === undefined ? `Screen ${screen}` : `Screen ${screen} (${KINDS[kind].name})`;
+  const name = world.name(screen);
+  const label = name ? `Screen ${screen}: ${name}` : `Screen ${screen}`;
+  return kind === undefined ? label : `${label} (${KINDS[kind].name})`;
 }
 
 // One screen as a <pre>, with runs of same-looking cells in one span.

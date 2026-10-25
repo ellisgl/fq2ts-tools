@@ -4,7 +4,7 @@ import { ScreenEditor, line, type EditorState } from "../../tools/editor/screen-
 import { Editor, type SaveResult } from "../../tools/editor/editor.ts";
 import { main } from "../../tools/edit.ts";
 import { World, blankMap, type MapCell } from "../../engine/world.ts";
-import { FakeTerminal, makeMap, makeWorld, mouse, row, screenText, tempDir, type Step } from "../helpers.ts";
+import { FakeTerminal, makeMap, makeWorld, mouse, row, screenText, tempDir, typed, type Step } from "../helpers.ts";
 
 // Steps, or a function that makes them from the terminal they'll run on
 // (so a step can look at the screen).
@@ -62,7 +62,7 @@ describe("pickCharacter", () => {
 // ---- Editing a screen
 
 function state(changes: Partial<EditorState> = {}): EditorState {
-  return { brush: { ch: "#", fg: 14, bg: 4, solid: true }, clipboard: null, showSolid: false, showTriggers: true, ...changes };
+  return { brush: { ch: "#", fg: 14, bg: 4, solid: true, terrain: "grass" }, clipboard: null, overlay: "none", showTriggers: true, ...changes };
 }
 
 interface Setup {
@@ -82,8 +82,8 @@ async function editScreen(steps: Steps, { world = makeWorld(makeMap(1, 1)), stat
   return { world, term, state: s, changes: () => changes };
 }
 
-const blank: MapCell = { ch: " ", fg: 15, bg: 2, solid: false };
-const brush: MapCell = { ch: "#", fg: 14, bg: 4, solid: true };
+const blank: MapCell = { ch: " ", fg: 15, bg: 2, solid: false, terrain: "grass" };
+const brush: MapCell = { ch: "#", fg: 14, bg: 4, solid: true, terrain: "grass" };
 
 describe("ScreenEditor", () => {
   test("Space and Enter paint the brush; painting the same again changes nothing", async () => {
@@ -125,13 +125,13 @@ describe("ScreenEditor", () => {
       ],
       { world },
     );
-    expect(s.brush).toEqual({ ch: " ", fg: 15, bg: 2, solid: true });
+    expect(s.brush).toEqual({ ch: " ", fg: 15, bg: 2, solid: true, terrain: "grass" });
   });
 
   test("F/f and B/b cycle the colours, H toggles hard", async () => {
     const { state: s } = await editScreen(["F", "F", "B", "B", "B", "B", "h"]);
     expect(s.brush).toMatchObject({ fg: 0, bg: 0, solid: false });
-    const back = await editScreen(["f", "b"], { state: state({ brush: { ch: " ", fg: 0, bg: 0, solid: false } }) });
+    const back = await editScreen(["f", "b"], { state: state({ brush: { ch: " ", fg: 0, bg: 0, solid: false, terrain: "grass" } }) });
     expect(back.state.brush).toMatchObject({ fg: 15, bg: 7 });
   });
 
@@ -271,7 +271,40 @@ describe("ScreenEditor", () => {
       ],
       { world },
     );
-    expect(s.showSolid).toBe(true);
+    expect(s.overlay).toBe("solid");
+  });
+
+  test("O again shows terrain as letters, and once more turns it off", async () => {
+    const world = makeWorld(makeMap(1, 1));
+    world.setCell(1, 2, 1, { ch: "♠", fg: 10, bg: 2, solid: true, terrain: "forest" });
+    const { state: s } = await editScreen(
+      (term) => [
+        "o",
+        "o",
+        () => {
+          expect(term.screen.cell(1, 1)).toMatchObject({ ch: ".", fg: 10, bg: 2 });
+          expect(term.screen.cell(2, 1)).toMatchObject({ ch: "f", fg: 15, bg: 2 });
+          return "o";
+        },
+        () => {
+          expect(term.screen.cell(2, 1).ch).toBe("♠");
+          return "x";
+        },
+      ],
+      { world },
+    );
+    expect(s.overlay).toBe("none");
+  });
+
+  test("G cycles the brush's terrain, and painting sets it", async () => {
+    const { world, state: s } = await editScreen(["g", "g", " "]);
+    expect(s.brush.terrain).toBe("mountain");
+    expect(world.terrain(1, 1, 1)).toBe("mountain");
+  });
+
+  test("the palette's terrain button cycles it too, wrapping round", async () => {
+    const { state: s } = await editScreen([mouse(73, 24)], { state: state({ brush: { ...brush, terrain: "structure" } }) });
+    expect(s.brush.terrain).toBe("grass");
   });
 
   test("trigger tiles blink until T turns that off", async () => {
@@ -301,8 +334,8 @@ describe("ScreenEditor", () => {
         "p",
         "v",
         () => {
-          expect(row(t.screen, 23)).toBe("Screen 1 small town  2,2  under cursor: fg E bg 4 hard trigger");
-          expect(row(t.screen, 24)).toBe("Brush #  fg 0█1█2█3█4█5█6█7█8█9█A█B█C█D█E█F█ bg ··      <>        HARD");
+          expect(row(t.screen, 23)).toBe("Screen 1 small town  2,2  under cursor: fg E bg 4 hard grass trigger");
+          expect(row(t.screen, 24)).toBe("Brush #  fg 0█1█2█3█4█5█6█7█8█9█A█B█C█D█E█F█ bg ··      <>        HARD grass");
           expect(t.screen.cell(41, 24)).toMatchObject({ ch: "E", fg: 0, bg: 7 });
           expect(t.screen.cell(57, 24)).toMatchObject({ ch: "<", bg: 4 });
           expect(row(t.screen, 25)).toStartWith("? help");
@@ -438,7 +471,7 @@ describe("Editor overview", () => {
   test("Enter on an empty spot creates a screen of a chosen kind, then edits it", async () => {
     const { world } = await runOverview(["right", "right", "enter", "down", "down", "enter", "escape", "q", "n"]);
     expect(world.kind(3)).toBe(2);
-    expect(world.cell(3, 1, 1)).toEqual({ ch: " ", fg: 15, bg: 0, solid: false });
+    expect(world.cell(3, 1, 1)).toEqual({ ch: " ", fg: 15, bg: 0, solid: false, terrain: "floor" });
   });
 
   test("Escape in the kind menu creates nothing", async () => {
@@ -704,7 +737,7 @@ describe("ScreenEditor with the mouse", () => {
 
   test("the palette: brush character, colours and hard/soft", async () => {
     const { state: s } = await editScreen([mouse(7, 24), "~", mouse(13, 24), mouse(16, 24), mouse(49, 24), mouse(63, 24), mouse(68, 24), mouse(3, 24), mouse(46, 24)]);
-    expect(s.brush).toEqual({ ch: "~", fg: 1, bg: 7, solid: false });
+    expect(s.brush).toEqual({ ch: "~", fg: 1, bg: 7, solid: false, terrain: "grass" });
   });
 
   test("the wheel, releases and clicks below the map do nothing", async () => {
@@ -788,5 +821,54 @@ describe("encounter tables in the overview", () => {
     await new Editor({ term, world, save: () => ({ written: [], deleted: [] }) }).run();
     expect(world.encounters(1)).toBeUndefined();
     expect(world.has(2)).toBe(false);
+  });
+});
+
+describe("naming screens in the overview", () => {
+  test("A names the screen, and the status line shows it", async () => {
+    const world = makeWorld(makeMap(1, 1));
+    const term = new FakeTerminal();
+    const editor = new Editor({ term, world, save: () => ({ written: [], deleted: [] }) });
+    term.feed(
+      "a",
+      ...typed("Frog Pond"),
+      () => {
+        expect(row(term.screen, 25)).toBe('Screen 1 is now called "Frog Pond".');
+        return "x";
+      },
+      () => {
+        expect(row(term.screen, 25)).toStartWith("Screen 1 Frog Pond, land *");
+        return "a";
+      },
+      ...Array.from({ length: 9 }, () => "backspace"),
+      "enter",
+      () => {
+        expect(row(term.screen, 25)).toBe("Screen 1 has no name now.");
+        return "q";
+      },
+      "n",
+    );
+    await editor.run();
+    expect(world.name(1)).toBe("");
+  });
+
+  test("keeping the same name changes nothing, and empty spots can't be named", async () => {
+    const world = makeWorld(makeMap(1, 1));
+    world.setName(1, "Home");
+    const term = new FakeTerminal(["a", "enter", "right", "a", "q"]);
+    const editor = new Editor({ term, world, save: () => ({ written: [], deleted: [] }) });
+    await editor.run();
+    expect(editor.hasUnsavedChanges).toBe(false);
+  });
+
+  test("a long name drops the key hints rather than overflowing", async () => {
+    const world = makeWorld(makeMap(1, 5));
+    world.setName(1, "The Very Long Name Of This Place");
+    const term = new FakeTerminal();
+    term.feed(() => {
+      expect(row(term.screen, 25)).toBe("Screen 1 The Very Long Name Of This Place, land monsters");
+      return "q";
+    });
+    await new Editor({ term, world, save: () => ({ written: [], deleted: [] }) }).run();
   });
 });

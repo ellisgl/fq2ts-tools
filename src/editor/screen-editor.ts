@@ -4,7 +4,7 @@
 import { at } from "../../engine/assert.ts";
 import { draw } from "../../engine/text.ts";
 import type { Screen } from "../../engine/screen.ts";
-import { KINDS, MAP_HEIGHT, MAP_KINDS, MAP_WIDTH, type GameMap, type MapCell, type World } from "../../engine/world.ts";
+import { KINDS, MAP_HEIGHT, MAP_KINDS, MAP_WIDTH, TERRAINS, TERRAIN_CODES, type GameMap, type MapCell, type Terrain, type World } from "../../engine/world.ts";
 import { isMouse, type Key, type MouseInput, type Terminal } from "../../engine/terminal.ts";
 import { pickCharacter } from "./picker.ts";
 
@@ -18,12 +18,28 @@ const BRUSH_X = 7;
 const FG_X = 13;
 const BG_X = 49;
 const HARD_X = 67;
+const TERRAIN_X = 72;
+
+// How each terrain looks in the terrain overlay: [fg, bg].
+const TERRAIN_LOOK: Readonly<Record<Terrain, readonly [number, number]>> = {
+  grass: [10, 2],
+  forest: [15, 2],
+  mountain: [0, 7],
+  water: [15, 1],
+  road: [14, 6],
+  floor: [7, 0],
+  structure: [15, 4],
+};
+
+// What the map shows over the cells.
+export const OVERLAYS = ["none", "solid", "terrain"] as const;
+export type Overlay = (typeof OVERLAYS)[number];
 
 // What the editor keeps between screens.
 export interface EditorState {
   brush: MapCell;
   clipboard: MapCell[][] | null;
-  showSolid: boolean;
+  overlay: Overlay;
   showTriggers: boolean;
 }
 
@@ -45,11 +61,11 @@ export const SCREEN_HELP = [
   "{white}Space   {gray}paint the brush here           {white}P {gray}pen: paint as you move",
   "{white}C       {gray}pick the brush character       {white}E {gray}take the brush from this cell",
   "{white}F / f   {gray}next / previous foreground     {white}B / b {gray}next / previous background",
-  "{white}H       {gray}brush is hard (solid) or soft",
+  "{white}H       {gray}brush is hard (solid) or soft  {white}G {gray}the brush's terrain (ground)",
   "{white}V       {gray}start / cancel a selection. With one: {white}Space {gray}fills it, {white}Y {gray}copies it",
   "{white}S       {gray}stamp what was copied here (top left corner)",
   "{white}U / R   {gray}undo / redo",
-  "{white}O       {gray}show solid cells (red)         {white}T {gray}show trigger tiles (blinking)",
+  "{white}O       {gray}show solid cells, terrain, or neither   {white}T {gray}blink trigger tiles",
   "{white}K       {gray}change this screen's kind",
   "{white}Esc     {gray}back to the world overview      {white}? {gray}this help",
   "",
@@ -60,7 +76,7 @@ export const SCREEN_HELP = [
   "           {gray}or HARD/SOFT to switch",
 ];
 
-const describeCell = (c: MapCell): string => `fg ${HEX.charAt(c.fg)} bg ${HEX.charAt(c.bg)} ${c.solid ? "hard" : "soft"}`;
+const describeCell = (c: MapCell): string => `fg ${HEX.charAt(c.fg)} bg ${HEX.charAt(c.bg)} ${c.solid ? "hard" : "soft"} ${c.terrain}`;
 
 export class ScreenEditor {
   private readonly term: Terminal;
@@ -160,6 +176,9 @@ export class ScreenEditor {
       case "b":
         s.brush = { ...s.brush, bg: (s.brush.bg + (key === "B" ? 1 : 7)) % 8 };
         break;
+      case "g":
+        s.brush = { ...s.brush, terrain: nextTerrain(s.brush.terrain) };
+        break;
       case "h":
         s.brush = { ...s.brush, solid: !s.brush.solid };
         break;
@@ -179,7 +198,7 @@ export class ScreenEditor {
         this.redo();
         break;
       case "o":
-        s.showSolid = !s.showSolid;
+        s.overlay = at(OVERLAYS, (OVERLAYS.indexOf(s.overlay) + 1) % OVERLAYS.length);
         break;
       case "t":
         s.showTriggers = !s.showTriggers;
@@ -243,6 +262,8 @@ export class ScreenEditor {
       s.brush = { ...s.brush, bg: Math.floor((x - BG_X) / 2) };
     } else if (x >= HARD_X && x < HARD_X + 4) {
       s.brush = { ...s.brush, solid: !s.brush.solid };
+    } else if (x >= TERRAIN_X) {
+      s.brush = { ...s.brush, terrain: nextTerrain(s.brush.terrain) };
     }
   }
 
@@ -378,11 +399,16 @@ export class ScreenEditor {
     for (let y = 1; y <= MAP_HEIGHT; y++) {
       for (let x = 1; x <= MAP_WIDTH; x++) {
         const c = world.cell(this.number, x, y);
+        let ch = c.ch;
         let fg = c.fg;
         let bg = c.bg;
-        if (this.state.showSolid && c.solid) bg = 4;
+        if (this.state.overlay === "solid" && c.solid) bg = 4;
+        if (this.state.overlay === "terrain") {
+          ch = TERRAIN_CODES[c.terrain];
+          [fg, bg] = TERRAIN_LOOK[c.terrain];
+        }
         if (sel && x >= sel.left && x <= sel.right && y >= sel.top && y <= sel.bottom) [fg, bg] = [bg, fg % 8];
-        screen.put(x, y, c.ch, fg, bg, blink && this.triggers.has(`${x},${y}`));
+        screen.put(x, y, ch, fg, bg, blink && this.triggers.has(`${x},${y}`));
       }
       screen.put(80, y, " ", 7, 0);
     }
@@ -419,6 +445,8 @@ export class ScreenEditor {
       else screen.text(x, PALETTE_ROW, c === 0 ? "··" : "  ", 8, c);
     }
     screen.text(HARD_X, PALETTE_ROW, b.solid ? "HARD" : "SOFT", b.solid ? 12 : 10, 0);
+    const [tfg, tbg] = TERRAIN_LOOK[b.terrain];
+    screen.text(TERRAIN_X, PALETTE_ROW, b.terrain.slice(0, 8), tfg, tbg);
 
     screen.fillRow(25, 0);
     draw(screen, this.message === null ? "{darkgray}? help  Esc back  mouse: left paint, right select, middle pick" : `{yellow}${this.message}`, { y: 25, bg: 0 });
@@ -445,3 +473,5 @@ export function line(from: { x: number; y: number }, to: { x: number; y: number 
   }
   return steps === 0 ? [[to.x, to.y]] : cells;
 }
+
+const nextTerrain = (t: Terrain): Terrain => at(TERRAINS, (TERRAINS.indexOf(t) + 1) % TERRAINS.length);

@@ -18,7 +18,7 @@ describe("parseScreenList", () => {
 
 describe("renderHtml", () => {
   // Screen 1 (land) and 3 (two columns along), and interior 721.
-  const world = makeWorld(makeMap(1, 1, ["2,1"]), makeMap(3, 5), blankMap(721, 2, { ch: "<", fg: 14, bg: 4, solid: false }));
+  const world = makeWorld(makeMap(1, 1, ["2,1"]), makeMap(3, 5), blankMap(721, 2, { ch: "<", fg: 14, bg: 4, solid: false, terrain: "grass" }));
 
   test("is a standalone page", () => {
     const html = renderHtml(world, { title: "My <World>" });
@@ -69,7 +69,7 @@ describe("renderHtml", () => {
   test("renders the whole game world", () => {
     const html = renderHtml(gameWorld(), { triggers: contentTriggers() });
     expect(html.match(/<figure/g)).toHaveLength(gameWorld().screens().length);
-    expect(html).toContain("Screen 82 (town)");
+    expect(html).toContain("Screen 82: Stone Valley (town)");
     expect(html).toContain('title="Trigger at 29,17"');
   });
 });
@@ -111,4 +111,10 @@ describe("the view command", () => {
     expect(() => main(["--bogus"], () => undefined)).toThrow();
     expect(() => main(["--screens", "x"], () => undefined)).toThrow('Not a screen or range: "x"');
   });
+});
+
+test("screen labels include names", () => {
+  const world = makeWorld(makeMap(1, 1));
+  world.setName(1, "Frog Pond");
+  expect(renderHtml(world)).toContain("Screen 1: Frog Pond (land)");
 });

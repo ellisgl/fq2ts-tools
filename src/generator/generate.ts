@@ -19,14 +19,14 @@ export interface GenerateOptions {
 
 // The tiles, as the hand-made screens draw them.
 export const STYLE = {
-  grass: { ch: " ", fg: 15, bg: 2, solid: false },
-  tree: { ch: "♠", fg: 10, bg: 2, solid: true },
-  autumnTree: { ch: "♠", fg: 6, bg: 2, solid: true },
-  bush: { ch: "♣", fg: 10, bg: 2, solid: true },
-  mountain: { ch: "∩", fg: 8, bg: 2, solid: true },
-  water: { ch: " ", fg: 15, bg: 1, solid: true },
-  shore: { ch: "█", fg: 9, bg: 1, solid: true },
-  road: { ch: " ", fg: 15, bg: 6, solid: false },
+  grass: { ch: " ", fg: 15, bg: 2, solid: false, terrain: "grass" },
+  tree: { ch: "♠", fg: 10, bg: 2, solid: true, terrain: "forest" },
+  autumnTree: { ch: "♠", fg: 6, bg: 2, solid: true, terrain: "forest" },
+  bush: { ch: "♣", fg: 10, bg: 2, solid: true, terrain: "forest" },
+  mountain: { ch: "∩", fg: 8, bg: 2, solid: true, terrain: "mountain" },
+  water: { ch: " ", fg: 15, bg: 1, solid: true, terrain: "water" },
+  shore: { ch: "█", fg: 9, bg: 1, solid: true, terrain: "water" },
+  road: { ch: " ", fg: 15, bg: 6, solid: false, terrain: "road" },
 } as const satisfies Record<string, MapCell>;
 
 const WATER_KINDS: readonly MapKind[] = [0, 8];
@@ -333,6 +333,7 @@ export function generate(world: World, screens: readonly number[], { seed }: Gen
         at(map.fg, y)[x] = c.fg;
         at(map.bg, y)[x] = c.bg;
         at(map.solid, y)[x] = c.solid;
+        at(map.terrain, y)[x] = c.terrain;
       });
     });
     world.put(map);
