@@ -1,10 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { pickCharacter, pickerCell } from '../../tools/editor/picker.ts';
+import { PAGES, pickCharacter, pickerCell } from '../../tools/editor/picker.ts';
+import { fitsCell } from '../../engine/chars.ts';
 import { ScreenEditor, line, type EditorState } from '../../tools/editor/screen-editor.ts';
 import { Editor, type SaveResult } from '../../tools/editor/editor.ts';
 import { main } from '../../tools/edit.ts';
 import { World, blankMap, type MapCell } from '../../engine/world.ts';
-import { caught, FakeTerminal, makeMap, makeWorld, mouse, row, screenText, tempDir, typed, type Step } from '../helpers.ts';
+import { caught, FakeTerminal, gameWorld, makeMap, makeWorld, mouse, row, screenText, tempDir, typed, type Step } from '../helpers.ts';
 
 // Steps, or a function that makes them from the terminal they'll run on
 // (so a step can look at the screen).
@@ -14,27 +15,65 @@ const stepsFor = (steps: Steps, term: FakeTerminal): readonly Step[] => (typeof 
 // ---- The character picker
 
 describe('pickCharacter', () => {
-    test('starts on the current character and Enter picks', async () => {
+    const at = (page: number, ch: string): number => PAGES[page]?.chars.indexOf(ch) ?? -1;
+
+    test('starts on the current character, shows its page and code point, and Enter picks', async () => {
         const term = new FakeTerminal();
         term.feed(() => {
-            expect(term.screen.cursor).toEqual(pickerCell(6));
-            expect(row(term.screen, 20)).toContain('Code   6  hex 06');
+            expect(term.screen.cursor).toEqual(pickerCell(at(2, '♠')));
+            expect(row(term.screen, 3)).toContain('Symbols (3/9)');
+            expect(row(term.screen, 20)).toContain('U+2660');
             return 'enter';
         });
         expect(await pickCharacter(term, '♠')).toBe('♠');
         expect(term.screen.cursor).toBeNull();
     });
 
-    test('arrows move around the grid and wrap', async () => {
-        expect(await pickCharacter(new FakeTerminal(['right', 'down', 'enter']), ' ')).toBe('◄'); // 0 → 1 → 17
-        expect(await pickCharacter(new FakeTerminal(['left', 'left', 'enter']), ' ')).toBe('■'); // 0 → 255 → 254
-        expect(await pickCharacter(new FakeTerminal(['up', 'enter']), '☺')).toBe('±'); // 1 → 241
-        expect(await pickCharacter(new FakeTerminal(['end', 'enter']), '☺')).toBe('☼'); // 15
-        expect(await pickCharacter(new FakeTerminal(['end', 'home', 'enter']), '☺')).toBe(' '); // 0
+    test('a character on no page starts at the top of the first', async () => {
+        expect(await pickCharacter(new FakeTerminal(['enter']), '€')).toBe('▀');
     });
 
-    test('typing a character picks it; other keys are ignored', async () => {
-        expect(await pickCharacter(new FakeTerminal(['pageup', '#']), ' ')).toBe('#');
+    test('arrows move around the page, and stop or wrap at its ends', async () => {
+        const blocks = PAGES[0]?.chars ?? [];
+        expect(await pickCharacter(new FakeTerminal(['right', 'down', 'enter']), '▀')).toBe(blocks[17] ?? '');
+        expect(await pickCharacter(new FakeTerminal(['left', 'enter']), '▀')).toBe(blocks.at(-1) ?? '');
+        expect(await pickCharacter(new FakeTerminal(['right', 'enter']), blocks.at(-1) ?? '')).toBe('▀');
+        expect(await pickCharacter(new FakeTerminal(['up', 'enter']), '▀')).toBe('▀');
+        expect(await pickCharacter(new FakeTerminal(['end', 'enter']), '▀')).toBe(blocks[15] ?? '');
+        expect(await pickCharacter(new FakeTerminal(['end', 'home', 'enter']), '▀')).toBe('▀');
+        expect(await pickCharacter(new FakeTerminal([...Array.from({ length: 20 }, () => 'down'), 'enter']), '▀')).toBe(blocks.at(-1) ?? '');
+    });
+
+    test('Page Up and Page Down change pages, wrapping round', async () => {
+        expect(await pickCharacter(new FakeTerminal(['pagedown', 'enter']), '▀')).toBe('─');
+        expect(await pickCharacter(new FakeTerminal(['pageup', 'enter']), '▀')).toBe('Α');
+    });
+
+    test('a shorter page keeps the selection on it', async () => {
+        const greek = PAGES[8]?.chars ?? [];
+        // From the last cell of Maths (256) to Letters (188 characters).
+        expect(await pickCharacter(new FakeTerminal(['end', 'pagedown', 'enter']), '∀')).toBe(PAGES[7]?.chars[15] ?? '');
+        expect(greek.length).toBeLessThan(256);
+    });
+
+    test('typing a character picks it (in NFC), if it fits a cell', async () => {
+        expect(await pickCharacter(new FakeTerminal(['ж']), ' ')).toBe('ж');
+        expect(await pickCharacter(new FakeTerminal(['😀', 'escape']), ' ')).toBeNull();
+    });
+
+    test('Tab takes a code point', async () => {
+        expect(await pickCharacter(new FakeTerminal(['tab', ...typed('2603')]), ' ')).toBe('☃');
+        expect(await pickCharacter(new FakeTerminal(['tab', ...typed('03bb')]), ' ')).toBe('λ');
+    });
+
+    test('a code point that does not fit a cell, or is no code point, is refused', async () => {
+        const term = new FakeTerminal();
+        term.feed('tab', ...typed('1F600'), () => {
+            expect(row(term.screen, 20)).toContain("That doesn't fit in one cell.");
+            return 'tab';
+        }, ...typed('110000'), 'tab', 'escape', 'tab', 'x', 'enter', 'escape');
+        expect(await pickCharacter(term, ' ')).toBeNull();
+        expect(term.remaining).toBe(0);
     });
 
     test('Escape cancels', async () => {
@@ -42,20 +81,44 @@ describe('pickCharacter', () => {
     });
 
     test('clicking a character picks it', async () => {
-        const { x, y } = pickerCell(65);
-        expect(await pickCharacter(new FakeTerminal([mouse(x, y)]), ' ')).toBe('A');
+        const { x, y } = pickerCell(at(1, '╬'));
+        expect(await pickCharacter(new FakeTerminal(['pagedown', mouse(x, y)]), '▀')).toBe('╬');
     });
 
     test('clicking outside the box cancels; other clicks and mouse input are ignored', async () => {
         expect(await pickCharacter(new FakeTerminal([mouse(1, 1)]), ' ')).toBeNull();
         const title = { x: pickerCell(0).x, y: pickerCell(0).y - 1 };
         const between = { x: pickerCell(0).x + 1, y: pickerCell(0).y };
-        const steps = [mouse(title.x, title.y), mouse(between.x, between.y), mouse(pickerCell(5).x, pickerCell(5).y, { action: 'release', button: 'none' }), 'enter'];
+        const empty = pickerCell(255);
+        const steps = [mouse(title.x, title.y), mouse(between.x, between.y), mouse(empty.x, empty.y), mouse(pickerCell(5).x, pickerCell(5).y, { action: 'release', button: 'none' }), 'enter'];
         expect(await pickCharacter(new FakeTerminal(steps), '☺')).toBe('☺');
     });
 
-    test("a character that isn't in CP437 starts at the top", async () => {
-        expect(await pickCharacter(new FakeTerminal(['enter']), 'Ж')).toBe(' ');
+    test('every page holds only characters that fit a cell, and none twice', () => {
+        const all = PAGES.flatMap((p) => p.chars);
+        expect(new Set(all).size).toBe(all.length);
+        for (const page of PAGES) {
+            expect(page.chars.length).toBeGreaterThan(0);
+            expect(page.chars.length).toBeLessThanOrEqual(256);
+            for (const ch of page.chars) {
+                expect(fitsCell(ch)).toBe(true);
+            }
+        }
+    });
+
+    test('every character in the game\'s maps is on a page', () => {
+        const world = gameWorld();
+        const onPages = new Set(PAGES.flatMap((p) => p.chars));
+        for (const screen of world.screens()) {
+            for (let y = 1; y <= 22; y++) {
+                for (let x = 1; x <= 79; x++) {
+                    const { ch } = world.tile(screen, x, y);
+                    if (ch !== ' ') {
+                        expect(onPages.has(ch)).toBe(true);
+                    }
+                }
+            }
+        }
     });
 });
 

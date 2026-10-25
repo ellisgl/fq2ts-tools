@@ -1,6 +1,6 @@
 // Draws the world as a standalone HTML page: the outdoor screens laid out
 // where they sit on the world grid, then every interior on its own. Cells
-// keep their CP437 characters and CGA colours. The page can outline solid
+// keep their characters and CGA colours. The page can outline solid
 // cells and trigger tiles, and zoom.
 
 import { at } from '../engine/assert.ts';
