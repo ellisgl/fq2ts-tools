@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test';
-import { PAGES, pickCharacter, pickerCell } from '../../tools/editor/picker.ts';
-import { fitsCell } from '../../engine/chars.ts';
-import { ScreenEditor, line, type EditorState } from '../../tools/editor/screen-editor.ts';
-import { Editor, type SaveResult } from '../../tools/editor/editor.ts';
+import { PAGES, pickCharacter, pickerCell } from '@fq2js/tools/editor/picker';
+import { fitsCell } from '@fq2js/engine/chars';
+import { ScreenEditor, line, type EditorState } from '@fq2js/tools/editor/screen-editor';
+import { Editor, type SaveResult } from '@fq2js/tools/editor/editor';
 import { main } from '../../tools/edit.ts';
-import { World, blankMap, type MapCell } from '../../engine/world.ts';
+import { World, blankMap, type MapCell } from '@fq2js/engine/world';
 import { caught, FakeTerminal, gameWorld, makeMap, makeWorld, mouse, row, screenText, tempDir, typed, type Step } from '../helpers.ts';
 
 // Steps, or a function that makes them from the terminal they'll run on
@@ -598,7 +598,7 @@ describe('Editor overview', () => {
             (t) => [
                 'd',
                 () => {
-                    expect(row(t.screen, 25)).toBe('Delete screen 1 (it has scripts in content/screens.ts)? (Y/N)');
+                    expect(row(t.screen, 25)).toBe('Delete screen 1 (the game has scripts on it)? (Y/N)');
                     return 'n';
                 },
                 'd',
@@ -696,7 +696,7 @@ describe('the edit command', () => {
     test('--help', async () => {
         const lines: string[] = [];
         expect(await main(['-h'], new FakeTerminal(), (l) => lines.push(l))).toBe(0);
-        expect(lines[0]).toContain('Usage: bun tools/edit.ts');
+        expect(lines[0]).toContain('Usage: edit [options]');
     });
 
     test('edits and saves a map folder', async () => {

@@ -1,0 +1,14 @@
+{
+  "name": "@fq2js/tools",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Map tools for @fq2js/engine games: a viewer, a level editor and a map generator.",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "dependencies": {
+    "@fq2js/engine": "workspace:*"
+  }
+}

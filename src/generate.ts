@@ -1,17 +1,18 @@
-#!/usr/bin/env bun
-// Map generator: fills screens with generated terrain.
+// Map generator: fills screens with generated terrain. A game runs `main`
+// with its own GameFiles:
 //
-//   bun tools/generate.ts [--screens 8-14] [--seed 42] [--preview out.html] [--dry-run] [--force]
+//   bun run generate [--screens 8-14] [--seed 42] [--preview out.html] [--dry-run] [--force]
 
 import { writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { GRID_HEIGHT, GRID_WIDTH, World, gridPosition } from '../engine/world.ts';
+import { GRID_HEIGHT, GRID_WIDTH, World, gridPosition } from '@fq2js/engine/world';
 import { generate, isBlank } from './generator/generate.ts';
 import { renderHtml } from './html.ts';
-import { contentTriggers, parseScreenList } from './view.ts';
+import { parseScreenList } from './view.ts';
+import type { GameFiles } from './game.ts';
 
-const USAGE = `Usage: bun tools/generate.ts [options]
+const USAGE = `Usage: generate [options]
 
 Fills outdoor screens with generated land, water, forest, mountains and
 trails, following each screen's kind. Make the screens first (in the editor,
@@ -23,7 +24,7 @@ outdoor screen is filled.
   -f, --force           also replace screens that aren't blank
   -p, --preview FILE    write an HTML page of the result and its neighbours
   -n, --dry-run         don't save
-  -m, --maps DIR        the map folder (default: data/maps)
+  -m, --maps DIR        the map folder (default: the game's)
   -h, --help            show this help`;
 
 // The screens next to these (and these), for previews.
@@ -45,7 +46,7 @@ function withNeighbours(world: World, screens: readonly number[]): Set<number> {
     return out;
 }
 
-export function main(args: readonly string[], log: (line: string) => void = console.log, randomSeed: () => number = () => Math.floor(Math.random() * 1e6)): number {
+export function main(args: readonly string[], game: GameFiles, log: (line: string) => void = console.log, randomSeed: () => number = () => Math.floor(Math.random() * 1e6)): number {
     const { values } = parseArgs({
         args: [...args],
         options: {
@@ -54,7 +55,7 @@ export function main(args: readonly string[], log: (line: string) => void = cons
             force: { type: 'boolean', short: 'f', default: false },
             preview: { type: 'string', short: 'p' },
             'dry-run': { type: 'boolean', short: 'n', default: false },
-            maps: { type: 'string', short: 'm', default: join(import.meta.dir, '..', 'data', 'maps') },
+            maps: { type: 'string', short: 'm', default: game.maps },
             help: { type: 'boolean', short: 'h', default: false },
         },
     });
@@ -97,7 +98,7 @@ export function main(args: readonly string[], log: (line: string) => void = cons
 
     if (values.preview !== undefined) {
         const out = resolve(values.preview);
-        writeFileSync(out, renderHtml(world, { title: `Generated, seed ${seed}`, screens: withNeighbours(world, screens), triggers: contentTriggers() }));
+        writeFileSync(out, renderHtml(world, { title: `Generated, seed ${seed}`, screens: withNeighbours(world, screens), ...(game.triggers ? { triggers: game.triggers } : {}) }));
         log(`Wrote a preview to ${out}`);
     }
     if (values['dry-run']) {
@@ -107,13 +108,4 @@ export function main(args: readonly string[], log: (line: string) => void = cons
         log(`Saved ${written.length} file${written.length === 1 ? '' : 's'} to ${dir}`);
     }
     return 0;
-}
-
-if (import.meta.main) {
-    try {
-        process.exit(main(process.argv.slice(2)));
-    } catch (err) {
-        console.error(err instanceof Error ? err.message : err);
-        process.exit(1);
-    }
 }

@@ -3,9 +3,9 @@
 // keep their characters and CGA colours. The page can outline solid
 // cells and trigger tiles, and zoom.
 
-import { at } from '../engine/assert.ts';
-import { RGB, type Color } from '../engine/screen.ts';
-import { KINDS, MAP_HEIGHT, MAP_WIDTH, gridPosition, type MapCell, type World } from '../engine/world.ts';
+import { at } from '@fq2js/engine/assert';
+import { RGB, type Color } from '@fq2js/engine/screen';
+import { KINDS, MAP_HEIGHT, MAP_WIDTH, gridPosition, type MapCell, type World } from '@fq2js/engine/world';
 
 export interface RenderOptions {
     title?: string;

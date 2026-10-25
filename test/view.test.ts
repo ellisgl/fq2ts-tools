@@ -1,9 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { renderHtml } from '../../tools/html.ts';
-import { contentTriggers, main, parseScreenList } from '../../tools/view.ts';
-import { blankMap } from '../../engine/world.ts';
+import { renderHtml } from '@fq2js/tools/html';
+import { parseScreenList } from '@fq2js/tools/view';
+import { contentTriggers } from '@fq2js/tools/game';
+import { main } from '../../tools/view.ts';
+import content from '../../content/index.ts';
+import { blankMap } from '@fq2js/engine/world';
 import { gameWorld, makeMap, makeWorld, tempDir } from '../helpers.ts';
 
 describe('parseScreenList', () => {
@@ -69,7 +72,7 @@ describe('renderHtml', () => {
     });
 
     test('renders the whole game world', () => {
-        const html = renderHtml(gameWorld(), { triggers: contentTriggers() });
+        const html = renderHtml(gameWorld(), { triggers: contentTriggers(content) });
         expect(html.match(/<figure/g)).toHaveLength(gameWorld().screens().length);
         expect(html).toContain('Screen 82: Stone Valley (town)');
         expect(html).toContain('title="Trigger at 29,17"');
@@ -77,7 +80,7 @@ describe('renderHtml', () => {
 });
 
 test("contentTriggers lists the game's trigger tiles", () => {
-    const triggers = contentTriggers();
+    const triggers = contentTriggers(content);
     expect(triggers.get(82)?.has('29,17')).toBe(true);
     expect(triggers.get(1)).toBeUndefined();
 });
@@ -106,7 +109,7 @@ describe('the view command', () => {
     test('--help', () => {
         const lines: string[] = [];
         expect(main(['-h'], (l) => lines.push(l))).toBe(0);
-        expect(lines[0]).toContain('Usage: bun tools/view.ts');
+        expect(lines[0]).toContain('Usage: view [options]');
     });
 
     test('bad options are errors', () => {

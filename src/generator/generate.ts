@@ -9,8 +9,8 @@
 // across the edge, and any walkable patch left cut off gets a path cleared
 // to the rest.
 
-import { at, cellAt } from '../../engine/assert.ts';
-import { MAP_HEIGHT, MAP_WIDTH, GRID_WIDTH, GRID_HEIGHT, blankMap, gridPosition, type MapCell, type MapKind, type World } from '../../engine/world.ts';
+import { at, cellAt } from '@fq2js/engine/assert';
+import { MAP_HEIGHT, MAP_WIDTH, GRID_WIDTH, GRID_HEIGHT, blankMap, gridPosition, type MapCell, type MapKind, type World } from '@fq2js/engine/world';
 import { fbm, random, smoothstep } from './noise.ts';
 
 export interface GenerateOptions {

@@ -1,11 +1,11 @@
 // The level editor: an overview of the whole 80x24 world grid, from which
 // screens are created, copied, deleted and opened for editing.
 
-import { at } from '../../engine/assert.ts';
-import { draw, escapeMarkup, width } from '../../engine/text.ts';
-import { choose, textInput } from '../../engine/ui.ts';
-import type { Color, Screen } from '../../engine/screen.ts';
-import { isMouse, type Key, type MouseInput, type Terminal } from '../../engine/terminal.ts';
+import { at } from '@fq2js/engine/assert';
+import { draw, escapeMarkup, width } from '@fq2js/engine/text';
+import { choose, textInput } from '@fq2js/engine/ui';
+import type { Color, Screen } from '@fq2js/engine/screen';
+import { isMouse, type Key, type MouseInput, type Terminal } from '@fq2js/engine/terminal';
 import {
     GRID_HEIGHT,
     GRID_WIDTH,
@@ -17,7 +17,7 @@ import {
     type MapCell,
     type MapKind,
     type World,
-} from '../../engine/world.ts';
+} from '@fq2js/engine/world';
 import { ScreenEditor, type EditorState } from './screen-editor.ts';
 
 export interface SaveResult {
@@ -82,7 +82,7 @@ export const OVERVIEW_HELP = [
     '{white}Q, Esc  {gray}quit',
     '{gray}With the mouse: click a screen to select it, and again to open it.',
     '',
-    '{gray}Scripts in content/screens.ts refer to screens by number, so moving or',
+    "{gray}The game's scripts refer to screens by number, so moving or",
     '{gray}deleting a screen that has them means changing the scripts too.',
 ];
 
@@ -234,7 +234,7 @@ export class Editor {
     };
 
     private scriptsNote(screen: number): string {
-        return this.triggers.has(screen) ? ' (it has scripts in content/screens.ts)' : '';
+        return this.triggers.has(screen) ? ' (the game has scripts on it)' : '';
     }
 
     private async edit(): Promise<void> {

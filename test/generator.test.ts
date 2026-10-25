@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'bun:test';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { fbm, hash, random, smoothstep, valueNoise } from '../../tools/generator/noise.ts';
-import { STYLE, Terrain, generate, isBlank, walkableAreas, worldPoint } from '../../tools/generator/generate.ts';
-import { main } from '../../tools/generate.ts';
-import { MAP_HEIGHT, MAP_WIDTH, World, blankMap, type MapCell, type MapKind } from '../../engine/world.ts';
-import { makeMap, makeWorld, tempDir } from '../helpers.ts';
+import { fbm, hash, random, smoothstep, valueNoise } from '../src/generator/noise.ts';
+import { STYLE, Terrain, generate, isBlank, walkableAreas, worldPoint } from '../src/generator/generate.ts';
+import { main } from '../src/generate.ts';
+import { MAP_HEIGHT, MAP_WIDTH, World, blankMap, type MapCell, type MapKind } from '@fq2js/engine/world';
+import { makeMap, makeWorld, tempDir } from '@fq2js/engine/testing';
 
 // ---- Noise
 
@@ -283,7 +283,7 @@ describe('the generate command', () => {
             dir,
             run: (...args) => {
                 const lines: string[] = [];
-                const code = main(['-m', dir, ...args], (l) => lines.push(l), () => 99);
+                const code = main(['-m', dir, ...args], { maps: dir }, (l) => lines.push(l), () => 99);
                 return { code, lines };
             },
         };
@@ -346,8 +346,8 @@ describe('the generate command', () => {
 
     test('--help', () => {
         const lines: string[] = [];
-        expect(main(['-h'], (l) => lines.push(l))).toBe(0);
-        expect(lines[0]).toContain('Usage: bun tools/generate.ts');
+        expect(main(['-h'], { maps: '' }, (l) => lines.push(l))).toBe(0);
+        expect(lines[0]).toContain('Usage: generate [options]');
     });
 });
 
