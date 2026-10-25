@@ -1,13 +1,16 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { renderHtml } from '@fq2js/tools/html';
-import { parseScreenList } from '@fq2js/tools/view';
-import { contentTriggers } from '@fq2js/tools/game';
-import { main } from '../../tools/view.ts';
-import content from '../../content/index.ts';
+import { renderHtml } from '../src/html.ts';
+import { main as view, parseScreenList } from '../src/view.ts';
+import { contentTriggers, type GameFiles } from '../src/game.ts';
 import { blankMap } from '@fq2js/engine/world';
-import { gameWorld, makeMap, makeWorld, tempDir } from '../helpers.ts';
+import { makeMap, makeWorld, tempDir } from '@fq2js/engine/testing';
+import { content, FIXTURE_DATA } from '@fq2js/engine/fixture';
+
+// The view command, on the fixture's maps.
+const files: GameFiles = { maps: join(FIXTURE_DATA, 'maps'), triggers: contentTriggers(content) };
+const main = (args: readonly string[], log: (line: string) => void): number => view(args, files, log);
 
 describe('parseScreenList', () => {
     test('numbers and ranges', () => {
@@ -71,29 +74,17 @@ describe('renderHtml', () => {
         expect(outdoors).toContain('Screens 1,');
     });
 
-    test('renders the whole game world', () => {
-        const html = renderHtml(gameWorld(), { triggers: contentTriggers(content) });
-        expect(html.match(/<figure/g)).toHaveLength(gameWorld().screens().length);
-        expect(html).toContain('Screen 82: Stone Valley (town)');
-        expect(html).toContain('title="Trigger at 29,17"');
-    });
-});
-
-test("contentTriggers lists the game's trigger tiles", () => {
-    const triggers = contentTriggers(content);
-    expect(triggers.get(82)?.has('29,17')).toBe(true);
-    expect(triggers.get(1)).toBeUndefined();
 });
 
 describe('the view command', () => {
     test('writes the page', () => {
         const out = join(tempDir(), 'w.html');
         const lines: string[] = [];
-        expect(main(['--out', out, '--screens', '82'], (l) => lines.push(l))).toBe(0);
+        expect(main(['--out', out, '--screens', '1'], (l) => lines.push(l))).toBe(0);
         expect(lines).toEqual([`Wrote ${out}`]);
         const html = readFileSync(out, 'utf8');
         expect(html.match(/<figure/g)).toHaveLength(1);
-        expect(html).toContain('title="Trigger at 29,17"');
+        expect(html).toContain('title="Trigger at 12,10"');
     });
 
     test('--no-triggers and --maps', () => {
