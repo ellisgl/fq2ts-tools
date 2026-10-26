@@ -851,6 +851,35 @@ test('the edit command turns the mouse on, and off again', async () => {
     expect(term.out.written).toContain('\x1b[?1006l');
 });
 
+test('P marks a screen safe from fights between players, or not; interiors always are', async () => {
+    const world = makeWorld(makeMap(1, 1), makeMap(2, 2));
+    const term = new FakeTerminal();
+    const editor = new Editor({ term, world, save: () => ({ written: [], deleted: [] }) });
+    term.feed(
+        'p',
+        () => {
+            expect(row(term.screen, 25)).toBe("Screen 1 is safe: players can't fight each other there.");
+            return 'x';
+        },
+        () => {
+            expect(row(term.screen, 25)).toContain('Screen 1 land safe *');
+            return 'p';
+        },
+        () => {
+            expect(row(term.screen, 25)).toBe('Players can fight each other on screen 1 now.');
+            return 'right';
+        },
+        'p',
+        () => {
+            expect(row(term.screen, 25)).toBe('Interiors are always safe from fights between players.');
+            return 'q';
+        },
+        'n',
+    );
+    await editor.run();
+    expect(world.isSafe(1)).toBe(false);
+});
+
 describe('encounter tables in the overview', () => {
     test("E cycles a screen's table, and the status line shows it", async () => {
         const world = makeWorld(makeMap(1, 5));

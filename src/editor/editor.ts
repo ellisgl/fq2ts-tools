@@ -78,6 +78,7 @@ export const OVERVIEW_HELP = [
     "{white}K       {gray}change this screen's kind",
     '{white}E       {gray}change which encounter table its monsters come from',
     '{white}A       {gray}name this screen (shown when the player arrives)',
+    '{white}P       {gray}make this screen safe from fights between players (or not)',
     '{white}S       {gray}save to the map folder',
     '{white}Q, Esc  {gray}quit',
     '{gray}With the mouse: click a screen to select it, and again to open it.',
@@ -205,6 +206,9 @@ export class Editor {
             case 'a':
                 await this.rename();
                 break;
+            case 'p':
+                this.toggleSafe();
+                break;
             case 's':
                 this.save();
                 break;
@@ -307,6 +311,21 @@ export class Editor {
 
     // Cycles the screen's encounter table: "default" (not named in the map
     // file), then each other table in turn.
+    private toggleSafe(): void {
+        const kind = this.world.kind(this.current);
+        if (kind === undefined) {
+            return;
+        }
+        if (kind === 2) {
+            this.message = 'Interiors are always safe from fights between players.';
+            return;
+        }
+        const safe = !this.world.isSafe(this.current);
+        this.world.setSafe(this.current, safe);
+        this.changed();
+        this.message = safe ? `Screen ${this.current} is safe: players can't fight each other there.` : `Players can fight each other on screen ${this.current} now.`;
+    }
+
     private nextEncounters(): void {
         if (!this.world.has(this.current)) {
             return;
@@ -386,7 +405,8 @@ export class Editor {
         const kind = this.world.kind(this.current);
         const table = this.world.encounters(this.current);
         const monsters = kind !== undefined && KINDS[kind].monsters ? ` {gray}monsters${table === undefined ? '' : `: ${table}`}` : '';
-        const what = kind === undefined ? '{darkgray}empty' : `{lightcyan}${KINDS[kind].name}${monsters}`;
+        const safe = kind !== undefined && kind !== 2 && this.world.isSafe(this.current) ? ' {lightgreen}safe' : '';
+        const what = kind === undefined ? '{darkgray}empty' : `{lightcyan}${KINDS[kind].name}${monsters}${safe}`;
         const name = this.world.name(this.current);
         const about = `{white}Screen ${this.current}${name ? ` {yellow}${escapeMarkup(name)}{white},` : ''} ${what}${this.modified ? ' {lightred}*' : ''}`;
         const hints = '   {darkgray}Enter edit  N new  C/V copy  D del  ? help';
