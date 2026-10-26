@@ -6,7 +6,7 @@ import { fitsCell } from '@fq2ts/engine/chars';
 import { ScreenEditor, line, type EditorState } from '../src/editor/screen-editor.ts';
 import { Editor, type SaveResult } from '../src/editor/editor.ts';
 import { main as edit } from '../src/edit.ts';
-import { contentTriggers, type GameFiles } from '../src/game.ts';
+import { contentTriggers, type GameFiles, type TriggerTiles } from '../src/game.ts';
 import type { Terminal } from '@fq2ts/engine/terminal';
 import { bestiary, content, FIXTURE_DATA } from '@fq2ts/engine/fixture';
 import { World, blankMap, type MapCell } from '@fq2ts/engine/world';
@@ -126,7 +126,7 @@ function state(changes: Partial<EditorState> = {}): EditorState {
 interface Setup {
     world?: World;
     state?: EditorState;
-    triggers?: ReadonlySet<string>;
+    triggers?: TriggerTiles;
 }
 
 // Edits screen 1 (blank land unless given a world) with `steps`, then Escape.
@@ -424,7 +424,7 @@ describe('ScreenEditor', () => {
                     expect(row(t.screen, 24)).toBe('Brush #  fg 0█1█2█3█4█5█6█7█8█9█A█B█C█D█E█F█ bg ·   •             HARD grass');
                     expect(t.screen.cell(41, 24)).toMatchObject({ ch: 'E', fg: 0, bg: 7 });
                     expect(t.screen.cell(53, 24)).toMatchObject({ ch: '•', bg: 4 });
-                    expect(row(t.screen, 25)).toStartWith('? help');
+                    expect(row(t.screen, 25)).toStartWith('Trigger: runs a script');
                     expect(row(t.screen, 25)).toEndWith('PEN SEL CLIP');
                     expect(t.screen.cursor).toEqual({ x: 2, y: 2 });
                     return 'escape';
@@ -434,6 +434,31 @@ describe('ScreenEditor', () => {
             { world, triggers: new Set(['2,2']), state: state({ clipboard: [[blank]] }) },
         );
         expect(term.screen.cursor).toBeNull();
+    });
+
+    test('the bottom line says what the trigger under the cursor does', async () => {
+        const long = 'a door to somewhere very far away, past the mountains and over the sea';
+        await editScreen(
+            (t) => [
+                () => {
+                    expect(row(t.screen, 25)).toStartWith('? help');
+                    return 'right';
+                },
+                () => {
+                    expect(row(t.screen, 25)).toBe('Trigger: door to 725 at 31,15 {not markup}');
+                    return 'right';
+                },
+                () => {
+                    expect(row(t.screen, 25)).toBe('Trigger: runs a script');
+                    return 'right';
+                },
+                () => {
+                    expect(row(t.screen, 25)).toBe(`Trigger: ${long.slice(0, 56)}…`);
+                    return 'x';
+                },
+            ],
+            { triggers: new Map([['2,1', 'door to 725 at 31,15 {not markup}'], ['3,1', ''], ['4,1', long]]) },
+        );
     });
 
     test('? shows the keys', async () => {
@@ -451,7 +476,7 @@ describe('ScreenEditor', () => {
 
 interface EditorSetup {
     world?: World;
-    triggers?: ReadonlyMap<number, ReadonlySet<string>>;
+    triggers?: ReadonlyMap<number, TriggerTiles>;
 }
 
 function overview({ world = makeWorld(makeMap(1, 1), makeMap(2, 2), makeMap(82, 5)), triggers }: EditorSetup = {}) {
@@ -495,6 +520,15 @@ describe('Editor overview', () => {
         ]);
         expect(screenText(term.screen).trim()).toBe('');
         expect(term.screen.cursor).toBeNull();
+    });
+
+    test('the status line hints at naming screens and changing their kind', async () => {
+        await runOverview((t) => [
+            () => {
+                expect(row(t.screen, 25)).toBe('Screen 1 land   Enter edit  A name  K kind  E monsters  P safe  N new  ? help');
+                return 'q';
+            },
+        ]);
     });
 
     test('the status line fits, even for the longest screen description', async () => {
@@ -996,12 +1030,12 @@ describe('naming screens in the overview', () => {
         expect(editor.hasUnsavedChanges).toBe(false);
     });
 
-    test('a long name drops the key hints rather than overflowing', async () => {
+    test('a long name leaves room for fewer key hints rather than overflowing', async () => {
         const world = makeWorld(makeMap(1, 5));
         world.setName(1, 'The Very Long Name Of This Place');
         const term = new FakeTerminal();
         term.feed(() => {
-            expect(row(term.screen, 25)).toBe('Screen 1 The Very Long Name Of This Place, land monsters');
+            expect(row(term.screen, 25)).toBe('Screen 1 The Very Long Name Of This Place, land monsters   Enter edit  ? help');
             return 'q';
         });
         await new Editor({ term, world, save: () => ({ written: [], deleted: [] }) }).run();

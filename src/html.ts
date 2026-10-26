@@ -5,13 +5,14 @@
 
 import { COLOR_COUNT, rgb, type Color } from '@fq2ts/engine/screen';
 import { KINDS, MAP_HEIGHT, MAP_WIDTH, gridPosition, type MapCell, type World } from '@fq2ts/engine/world';
+import type { TriggerTiles } from './game.ts';
 
 export interface RenderOptions {
     title?: string;
     // Only these screens (default: all of them).
     screens?: ReadonlySet<number>;
     // "x,y" tiles that have a trigger, by screen.
-    triggers?: ReadonlyMap<number, ReadonlySet<string>>;
+    triggers?: ReadonlyMap<number, TriggerTiles>;
 }
 
 const escapeHtml = (text: string): string => text.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -29,7 +30,7 @@ function screenLabel(world: World, screen: number): string {
 }
 
 // One screen as a <pre>, with runs of same-looking cells in one span.
-function renderScreen(world: World, screen: number, triggers: ReadonlySet<string> | undefined): string {
+function renderScreen(world: World, screen: number, triggers: TriggerTiles | undefined): string {
     const lines: string[] = [];
     for (let y = 1; y <= MAP_HEIGHT; y++) {
         let line = '';

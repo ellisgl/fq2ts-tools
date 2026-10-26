@@ -2,12 +2,13 @@
 // whether it's solid), selections, copy and stamp, and undo.
 
 import { at } from '@fq2ts/engine/assert';
-import { draw } from '@fq2ts/engine/text';
+import { draw, escapeMarkup } from '@fq2ts/engine/text';
 import type { Screen } from '@fq2ts/engine/screen';
 import { KINDS, MAP_HEIGHT, MAP_KINDS, MAP_WIDTH, TERRAINS, TERRAIN_CODES, type GameMap, type MapCell, type Terrain, type World } from '@fq2ts/engine/world';
 import { isMouse, type Key, type MouseInput, type Terminal } from '@fq2ts/engine/terminal';
 import { pickCharacter } from './picker.ts';
 import { inkOn, pickColor, type ColorSide } from './color-picker.ts';
+import { triggerAbout, type TriggerTiles } from '../game.ts';
 
 const UNDO_LIMIT = 200;
 
@@ -22,6 +23,8 @@ const BG_X = 49;
 const BG_LABEL_X = BG_X - 3;
 const HARD_X = 67;
 const TERRAIN_X = 72;
+// Room on row 25 for what a trigger does, before the flags at x 68.
+const TRIGGER_ROOM = 66;
 
 // How each terrain looks in the terrain overlay: [fg, bg].
 const TERRAIN_LOOK: Readonly<Record<Terrain, readonly [number, number]>> = {
@@ -51,8 +54,8 @@ export interface ScreenEditorOptions {
     world: World;
     screen: number;
     state: EditorState;
-    // "x,y" tiles on this screen that have a trigger.
-    triggers: ReadonlySet<string>;
+    // "x,y" tiles on this screen that have a trigger (and what each does).
+    triggers: TriggerTiles;
     // Called whenever the world changes.
     changed(): void;
 }
@@ -70,6 +73,7 @@ export const SCREEN_HELP = [
     '{white}S       {gray}stamp what was copied here (top left corner)',
     '{white}U / R   {gray}undo / redo',
     '{white}O       {gray}show solid cells, terrain, or neither   {white}T {gray}blink trigger tiles',
+    '        {gray}(on a trigger tile, the bottom line says what it does)',
     "{white}K       {gray}change this screen's kind",
     '{white}Esc     {gray}back to the world overview      {white}? {gray}this help',
     '',
@@ -90,7 +94,7 @@ export class ScreenEditor {
     private readonly world: World;
     private readonly number: number;
     private readonly state: EditorState;
-    private readonly triggers: ReadonlySet<string>;
+    private readonly triggers: TriggerTiles;
     private readonly changed: () => void;
     private x = 1;
     private y = 1;
@@ -521,11 +525,23 @@ export class ScreenEditor {
         screen.text(TERRAIN_X, PALETTE_ROW, b.terrain.slice(0, 8), tfg, tbg);
 
         screen.fillRow(25, 0);
-        draw(screen, this.message === null ? '{darkgray}? help  Esc back  mouse: left paint, right select, middle pick' : `{yellow}${this.message}`, { y: 25, bg: 0 });
+        draw(screen, this.message === null ? (this.triggerLine() ?? '{darkgray}? help  Esc back  mouse: left paint, right select, middle pick') : `{yellow}${this.message}`, { y: 25, bg: 0 });
         const flags = [this.pen ? '{lightgreen}PEN' : '', this.anchor ? '{yellow}SEL' : '', this.state.clipboard ? '{gray}CLIP' : ''].filter(Boolean).join(' ');
         if (flags) {
             draw(screen, `{x 68}${flags}`, { y: 25, bg: 0 });
         }
+    }
+
+    // What the trigger under the cursor does, if there's one (cut short
+    // before the PEN SEL CLIP flags).
+    private triggerLine(): string | null {
+        const xy = `${this.x},${this.y}`;
+        if (!this.triggers.has(xy)) {
+            return null;
+        }
+        const about = triggerAbout(this.triggers, xy) ?? 'runs a script';
+        const room = TRIGGER_ROOM - 'Trigger: '.length;
+        return `{yellow}Trigger: {white}${escapeMarkup(about.length > room ? `${about.slice(0, room - 1)}…` : about)}`;
     }
 
     private async help(): Promise<void> {

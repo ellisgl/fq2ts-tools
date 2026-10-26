@@ -19,6 +19,7 @@ import {
     type World,
 } from '@fq2ts/engine/world';
 import { ScreenEditor, type EditorState } from './screen-editor.ts';
+import type { TriggerTiles } from '../game.ts';
 
 export interface SaveResult {
     written: string[];
@@ -29,7 +30,7 @@ export interface EditorOptions {
     term: Terminal;
     world: World;
     // "x,y" trigger tiles by screen (shown so they aren't painted over by accident).
-    triggers?: ReadonlyMap<number, ReadonlySet<string>>;
+    triggers?: ReadonlyMap<number, TriggerTiles>;
     // The encounter tables in data/monsters.json, for E to cycle through.
     encounterTables?: readonly string[];
     save(world: World): SaveResult;
@@ -87,11 +88,14 @@ export const OVERVIEW_HELP = [
     '{gray}deleting a screen that has them means changing the scripts too.',
 ];
 
+// The keys the overview's status line hints at, the most useful first.
+const HINTS = ['Enter edit', 'A name', 'K kind', 'E monsters', 'P safe', 'N new', 'C/V copy', 'D del'];
+
 export class Editor {
     private readonly term: Terminal;
     private readonly screen: Screen;
     private readonly world: World;
-    private readonly triggers: ReadonlyMap<number, ReadonlySet<string>>;
+    private readonly triggers: ReadonlyMap<number, TriggerTiles>;
     private readonly saveWorld: (world: World) => SaveResult;
     private readonly encounterTables: readonly string[];
     private readonly state: EditorState = {
@@ -409,11 +413,23 @@ export class Editor {
         const what = kind === undefined ? '{darkgray}empty' : `{lightcyan}${KINDS[kind].name}${monsters}${safe}`;
         const name = this.world.name(this.current);
         const about = `{white}Screen ${this.current}${name ? ` {yellow}${escapeMarkup(name)}{white},` : ''} ${what}${this.modified ? ' {lightred}*' : ''}`;
-        const hints = '   {darkgray}Enter edit  N new  C/V copy  D del  ? help';
-        const status = this.message === null ? (width(about + hints) <= 80 ? about + hints : about) : `{yellow}${this.message}`;
+        const status = this.message === null ? about + this.hints(width(about)) : `{yellow}${this.message}`;
         draw(screen, status, { y: 25, bg: 0 });
         const { col, row } = gridPosition(this.current);
         screen.cursor = { x: col, y: row };
+    }
+
+    // As many key hints as fit after `used` columns, the most useful first,
+    // always ending with "? help" (or none at all, if even that won't fit).
+    private hints(used: number): string {
+        const fits = (keys: readonly string[]): boolean => used + width(`   ${[...keys, '? help'].join('  ')}`) <= 80;
+        const keys: string[] = [];
+        for (const key of HINTS) {
+            if (fits([...keys, key])) {
+                keys.push(key);
+            }
+        }
+        return fits(keys) ? `   {darkgray}${[...keys, '? help'].join('  ')}` : '';
     }
 
     private box(x: number, y: number, width: number, height: number, title: string): void {
