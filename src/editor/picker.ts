@@ -3,10 +3,10 @@
 // are the useful ones for drawing maps, and anything else can be typed, or
 // entered by its code point.
 
-import { at } from '@fq2js/engine/assert';
-import { fitsCell } from '@fq2js/engine/chars';
-import { askText } from '@fq2js/engine/ui';
-import { isMouse, type Terminal } from '@fq2js/engine/terminal';
+import { at } from '@fq2ts/engine/assert';
+import { fitsCell } from '@fq2ts/engine/chars';
+import { askText } from '@fq2ts/engine/ui';
+import { isMouse, type Terminal } from '@fq2ts/engine/terminal';
 
 const LEFT = 23;
 const TOP = 2;

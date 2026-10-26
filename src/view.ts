@@ -6,7 +6,7 @@
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { GRID_HEIGHT, GRID_WIDTH, World } from '@fq2js/engine/world';
+import { GRID_HEIGHT, GRID_WIDTH, World } from '@fq2ts/engine/world';
 import { renderHtml } from './html.ts';
 import type { GameFiles } from './game.ts';
 

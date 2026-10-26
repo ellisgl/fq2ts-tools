@@ -6,7 +6,7 @@
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { GRID_HEIGHT, GRID_WIDTH, World, gridPosition } from '@fq2js/engine/world';
+import { GRID_HEIGHT, GRID_WIDTH, World, gridPosition } from '@fq2ts/engine/world';
 import { generate, isBlank } from './generator/generate.ts';
 import { renderHtml } from './html.ts';
 import { parseScreenList } from './view.ts';

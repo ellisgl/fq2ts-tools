@@ -1,11 +1,11 @@
 // Editing one screen: painting cells with a brush (character, colours and
 // whether it's solid), selections, copy and stamp, and undo.
 
-import { at } from '@fq2js/engine/assert';
-import { draw } from '@fq2js/engine/text';
-import type { Screen } from '@fq2js/engine/screen';
-import { KINDS, MAP_HEIGHT, MAP_KINDS, MAP_WIDTH, TERRAINS, TERRAIN_CODES, type GameMap, type MapCell, type Terrain, type World } from '@fq2js/engine/world';
-import { isMouse, type Key, type MouseInput, type Terminal } from '@fq2js/engine/terminal';
+import { at } from '@fq2ts/engine/assert';
+import { draw } from '@fq2ts/engine/text';
+import type { Screen } from '@fq2ts/engine/screen';
+import { KINDS, MAP_HEIGHT, MAP_KINDS, MAP_WIDTH, TERRAINS, TERRAIN_CODES, type GameMap, type MapCell, type Terrain, type World } from '@fq2ts/engine/world';
+import { isMouse, type Key, type MouseInput, type Terminal } from '@fq2ts/engine/terminal';
 import { pickCharacter } from './picker.ts';
 import { inkOn, pickColor, type ColorSide } from './color-picker.ts';
 

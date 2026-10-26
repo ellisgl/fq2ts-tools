@@ -1,8 +1,8 @@
 // The colour picker: all 256 colours in a 16x16 grid, the 16 CGA colours
 // on the first row (see engine/screen.ts for the rest).
 
-import { COLOR_COUNT, rgb, type Color } from '@fq2js/engine/screen';
-import { isMouse, type Terminal } from '@fq2js/engine/terminal';
+import { COLOR_COUNT, rgb, type Color } from '@fq2ts/engine/screen';
+import { isMouse, type Terminal } from '@fq2ts/engine/terminal';
 
 const LEFT = 23;
 const TOP = 2;

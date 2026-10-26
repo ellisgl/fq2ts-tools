@@ -1,11 +1,11 @@
 // The level editor: an overview of the whole 80x24 world grid, from which
 // screens are created, copied, deleted and opened for editing.
 
-import { at } from '@fq2js/engine/assert';
-import { draw, escapeMarkup, width } from '@fq2js/engine/text';
-import { choose, textInput } from '@fq2js/engine/ui';
-import type { Color, Screen } from '@fq2js/engine/screen';
-import { isMouse, type Key, type MouseInput, type Terminal } from '@fq2js/engine/terminal';
+import { at } from '@fq2ts/engine/assert';
+import { draw, escapeMarkup, width } from '@fq2ts/engine/text';
+import { choose, textInput } from '@fq2ts/engine/ui';
+import type { Color, Screen } from '@fq2ts/engine/screen';
+import { isMouse, type Key, type MouseInput, type Terminal } from '@fq2ts/engine/terminal';
 import {
     GRID_HEIGHT,
     GRID_WIDTH,
@@ -17,7 +17,7 @@ import {
     type MapCell,
     type MapKind,
     type World,
-} from '@fq2js/engine/world';
+} from '@fq2ts/engine/world';
 import { ScreenEditor, type EditorState } from './screen-editor.ts';
 
 export interface SaveResult {

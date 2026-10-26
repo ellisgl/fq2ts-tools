@@ -4,9 +4,9 @@ import { join } from 'node:path';
 import { renderHtml } from '../src/html.ts';
 import { main as view, parseScreenList } from '../src/view.ts';
 import { contentTriggers, type GameFiles } from '../src/game.ts';
-import { blankMap } from '@fq2js/engine/world';
-import { makeMap, makeWorld, tempDir } from '@fq2js/engine/testing';
-import { content, FIXTURE_DATA } from '@fq2js/engine/fixture';
+import { blankMap } from '@fq2ts/engine/world';
+import { makeMap, makeWorld, tempDir } from '@fq2ts/engine/testing';
+import { content, FIXTURE_DATA } from '@fq2ts/engine/fixture';
 
 // The view command, on the fixture's maps.
 const files: GameFiles = { maps: join(FIXTURE_DATA, 'maps'), triggers: contentTriggers(content) };

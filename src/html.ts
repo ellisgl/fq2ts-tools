@@ -3,8 +3,8 @@
 // keep their characters and colours. The page can outline solid
 // cells and trigger tiles, and zoom.
 
-import { COLOR_COUNT, rgb, type Color } from '@fq2js/engine/screen';
-import { KINDS, MAP_HEIGHT, MAP_WIDTH, gridPosition, type MapCell, type World } from '@fq2js/engine/world';
+import { COLOR_COUNT, rgb, type Color } from '@fq2ts/engine/screen';
+import { KINDS, MAP_HEIGHT, MAP_WIDTH, gridPosition, type MapCell, type World } from '@fq2ts/engine/world';
 
 export interface RenderOptions {
     title?: string;

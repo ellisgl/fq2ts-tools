@@ -2,15 +2,15 @@ import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { PAGES, pickCharacter, pickerCell } from '../src/editor/picker.ts';
 import { colorCell } from '../src/editor/color-picker.ts';
-import { fitsCell } from '@fq2js/engine/chars';
+import { fitsCell } from '@fq2ts/engine/chars';
 import { ScreenEditor, line, type EditorState } from '../src/editor/screen-editor.ts';
 import { Editor, type SaveResult } from '../src/editor/editor.ts';
 import { main as edit } from '../src/edit.ts';
 import { contentTriggers, type GameFiles } from '../src/game.ts';
-import type { Terminal } from '@fq2js/engine/terminal';
-import { bestiary, content, FIXTURE_DATA } from '@fq2js/engine/fixture';
-import { World, blankMap, type MapCell } from '@fq2js/engine/world';
-import { caught, FakeTerminal, makeMap, makeWorld, mouse, row, screenText, tempDir, typed, type Step } from '@fq2js/engine/testing';
+import type { Terminal } from '@fq2ts/engine/terminal';
+import { bestiary, content, FIXTURE_DATA } from '@fq2ts/engine/fixture';
+import { World, blankMap, type MapCell } from '@fq2ts/engine/world';
+import { caught, FakeTerminal, makeMap, makeWorld, mouse, row, screenText, tempDir, typed, type Step } from '@fq2ts/engine/testing';
 
 // The edit command, on the fixture's maps (unless told otherwise).
 const files: GameFiles = { maps: join(FIXTURE_DATA, 'maps'), triggers: contentTriggers(content), encounterTables: bestiary.tableNames() };

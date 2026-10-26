@@ -1,9 +1,9 @@
 // What the tools need to know about a game: where its maps are, and the
 // parts of its content they show. A game passes this to each tool's main.
 
-import type { FlagRecord } from '@fq2js/engine/player';
-import type { Content } from '@fq2js/engine/game';
-import type { WorldRecord } from '@fq2js/engine/shared';
+import type { FlagRecord } from '@fq2ts/engine/player';
+import type { Content } from '@fq2ts/engine/game';
+import type { WorldRecord } from '@fq2ts/engine/shared';
 
 export interface GameFiles {
     // The map folder, unless --maps says otherwise.

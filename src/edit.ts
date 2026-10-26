@@ -5,8 +5,8 @@
 
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { Terminal } from '@fq2js/engine/terminal';
-import { World } from '@fq2js/engine/world';
+import { Terminal } from '@fq2ts/engine/terminal';
+import { World } from '@fq2ts/engine/world';
 import { Editor } from './editor/editor.ts';
 import type { GameFiles } from './game.ts';
 

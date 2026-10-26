@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import { fbm, hash, random, smoothstep, valueNoise } from '../src/generator/noise.ts';
 import { STYLE, Terrain, generate, isBlank, walkableAreas, worldPoint } from '../src/generator/generate.ts';
 import { main } from '../src/generate.ts';
-import { MAP_HEIGHT, MAP_WIDTH, World, blankMap, type MapCell, type MapKind } from '@fq2js/engine/world';
-import { makeMap, makeWorld, tempDir } from '@fq2js/engine/testing';
+import { MAP_HEIGHT, MAP_WIDTH, World, blankMap, type MapCell, type MapKind } from '@fq2ts/engine/world';
+import { makeMap, makeWorld, tempDir } from '@fq2ts/engine/testing';
 
 // ---- Noise
 
