@@ -3,6 +3,7 @@
 
 import type { FlagRecord } from '@fq2js/engine/player';
 import type { Content } from '@fq2js/engine/game';
+import type { WorldRecord } from '@fq2js/engine/shared';
 
 export interface GameFiles {
     // The map folder, unless --maps says otherwise.
@@ -14,7 +15,7 @@ export interface GameFiles {
 }
 
 // The trigger tiles of a game's content, by screen.
-export function contentTriggers<F extends FlagRecord>(content: Content<F>): Map<number, Set<string>> {
+export function contentTriggers<F extends FlagRecord, W extends WorldRecord = WorldRecord>(content: Content<F, W>): Map<number, Set<string>> {
     const triggers = new Map<number, Set<string>>();
     for (const [screen, scripts] of Object.entries(content.screens)) {
         triggers.set(Number(screen), new Set(Object.keys(scripts?.at ?? {})));
