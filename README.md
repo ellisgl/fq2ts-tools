@@ -11,7 +11,9 @@ encounter tables to show); see Final Quest 2's [tools/](https://github.com/ellis
 bun add @fq2ts/tools@github:ellisgl/fq2ts-tools#v0.1.0
 ```
 
-It ships its TypeScript source, which Bun runs as it is.
+It ships its TypeScript source, which Bun runs as it is. It needs
+`@fq2ts/engine` too, named by commit hash in the game's `dependencies` and
+`overrides` (see the engine's README).
 
 ![the level editor, on Final Quest 2's Stone Valley](screenshots/leveleditor.png)
 
