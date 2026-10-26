@@ -46,7 +46,7 @@ describe('renderHtml', () => {
         expect(html).toContain('<h2>Interiors</h2>');
         expect(html).toContain('<figure data-screen="721">');
         expect(html).toContain('Screen 721 (interior)');
-        expect(html).toContain(`<span class="fE b4">${'&#60;'.repeat(79)}</span>`);
+        expect(html).toContain(`<span class="f14 b4">${'&#60;'.repeat(79)}</span>`);
     });
 
     test('each row of a screen is 79 characters in colour runs', () => {
@@ -54,7 +54,7 @@ describe('renderHtml', () => {
         const pre = /<pre class="screen"[^>]*>([\s\S]*?)<\/pre>/.exec(html)?.[1] ?? '';
         const rows = pre.split('\n');
         expect(rows).toHaveLength(22);
-        expect(rows[0]).toBe(`<span class="fF b2"> </span><span class="fF b2 s"> </span><span class="fF b2">${' '.repeat(77)}</span>`);
+        expect(rows[0]).toBe(`<span class="f15 b2"> </span><span class="f15 b2 s"> </span><span class="f15 b2">${' '.repeat(77)}</span>`);
         for (const row of rows) {
             expect(row.replace(/<[^>]+>/g, '')).toHaveLength(79);
         }
@@ -62,7 +62,7 @@ describe('renderHtml', () => {
 
     test('marks trigger tiles', () => {
         const html = renderHtml(world, { triggers: new Map([[1, new Set(['5,1'])]]) });
-        expect(html).toContain('<span class="fF b2 t" title="Trigger at 5,1"> </span>');
+        expect(html).toContain('<span class="f15 b2 t" title="Trigger at 5,1"> </span>');
     });
 
     test('can show only some screens', () => {

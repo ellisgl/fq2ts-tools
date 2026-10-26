@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { PAGES, pickCharacter, pickerCell } from '../src/editor/picker.ts';
+import { colorCell } from '../src/editor/color-picker.ts';
 import { fitsCell } from '@fq2js/engine/chars';
 import { ScreenEditor, line, type EditorState } from '../src/editor/screen-editor.ts';
 import { Editor, type SaveResult } from '../src/editor/editor.ts';
@@ -187,9 +188,35 @@ describe('ScreenEditor', () => {
 
     test('F/f and B/b cycle the colours, H toggles hard', async () => {
         const { state: s } = await editScreen(['F', 'F', 'B', 'B', 'B', 'B', 'h']);
-        expect(s.brush).toMatchObject({ fg: 0, bg: 0, solid: false });
+        expect(s.brush).toMatchObject({ fg: 0, bg: 8, solid: false });
         const back = await editScreen(['f', 'b'], { state: state({ brush: { ch: ' ', fg: 0, bg: 0, solid: false, terrain: 'grass' } }) });
-        expect(back.state.brush).toMatchObject({ fg: 15, bg: 7 });
+        expect(back.state.brush).toMatchObject({ fg: 15, bg: 15 });
+        // From one of the 256, back among the 16.
+        const from256 = await editScreen(['F', 'b'], { state: state({ brush: { ch: ' ', fg: 208, bg: 17, solid: false, terrain: 'grass' } }) });
+        expect(from256.state.brush).toMatchObject({ fg: 1, bg: 0 });
+    });
+
+    test('A picks from all 256 colours: Tab for the background', async () => {
+        const { state: s } = await editScreen((term) => [
+            'a',
+            () => {
+                expect(row(term.screen, 3)).toContain('Foreground colour');
+                return 'right';
+            },
+            'enter',
+            'a',
+            'tab',
+            'down',
+            'down',
+            () => {
+                expect(row(term.screen, 3)).toContain('Background colour');
+                expect(term.screen.cell(colorCell(36).x, colorCell(36).y)).toMatchObject({ ch: '<', bg: 36 });
+                return 'enter';
+            },
+            'a',
+            'escape',
+        ]);
+        expect(s.brush).toMatchObject({ fg: 15, bg: 36 });
     });
 
     describe('selections', () => {
@@ -221,7 +248,7 @@ describe('ScreenEditor', () => {
                 'v',
                 'right',
                 () => {
-                    expect(term.screen.cell(1, 1)).toMatchObject({ fg: 2, bg: 7 });
+                    expect(term.screen.cell(1, 1)).toMatchObject({ fg: 2, bg: 15 });
                     expect(term.screen.cell(3, 1)).toMatchObject({ fg: 15, bg: 2 });
                     return 'escape';
                 },
@@ -394,9 +421,9 @@ describe('ScreenEditor', () => {
                 'v',
                 () => {
                     expect(row(t.screen, 23)).toBe('Screen 1 small town  2,2  under cursor: fg E bg 4 hard grass trigger');
-                    expect(row(t.screen, 24)).toBe('Brush #  fg 0█1█2█3█4█5█6█7█8█9█A█B█C█D█E█F█ bg ··      <>        HARD grass');
+                    expect(row(t.screen, 24)).toBe('Brush #  fg 0█1█2█3█4█5█6█7█8█9█A█B█C█D█E█F█ bg ·   •             HARD grass');
                     expect(t.screen.cell(41, 24)).toMatchObject({ ch: 'E', fg: 0, bg: 7 });
-                    expect(t.screen.cell(57, 24)).toMatchObject({ ch: '<', bg: 4 });
+                    expect(t.screen.cell(53, 24)).toMatchObject({ ch: '•', bg: 4 });
                     expect(row(t.screen, 25)).toStartWith('? help');
                     expect(row(t.screen, 25)).toEndWith('PEN SEL CLIP');
                     expect(t.screen.cursor).toEqual({ x: 2, y: 2 });
@@ -798,8 +825,25 @@ describe('ScreenEditor with the mouse', () => {
     });
 
     test('the palette: brush character, colours and hard/soft', async () => {
-        const { state: s } = await editScreen([mouse(7, 24), '~', mouse(13, 24), mouse(16, 24), mouse(49, 24), mouse(63, 24), mouse(68, 24), mouse(3, 24), mouse(46, 24)]);
-        expect(s.brush).toEqual({ ch: '~', fg: 1, bg: 7, solid: false, terrain: 'grass' });
+        const { state: s } = await editScreen([mouse(7, 24), '~', mouse(13, 24), mouse(16, 24), mouse(49, 24), mouse(63, 24), mouse(68, 24), mouse(3, 24), mouse(48, 24)]);
+        expect(s.brush).toEqual({ ch: '~', fg: 1, bg: 14, solid: false, terrain: 'grass' });
+    });
+
+    test('clicking fg or bg opens all 256 colours, to click one', async () => {
+        const at = (c: number) => mouse(colorCell(c).x + 1, colorCell(c).y);
+        const { state: s } = await editScreen((term) => [
+            mouse(10, 24),
+            at(208),
+            mouse(47, 24),
+            at(17),
+            () => {
+                // The label shows a colour past the 16.
+                expect(term.screen.cell(46, 24)).toMatchObject({ ch: 'b', bg: 17 });
+                return mouse(46, 24);
+            },
+            mouse(1, 1),
+        ]);
+        expect(s.brush).toMatchObject({ fg: 208, bg: 17 });
     });
 
     test('the wheel, releases and clicks below the map do nothing', async () => {

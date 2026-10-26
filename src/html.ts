@@ -1,10 +1,9 @@
 // Draws the world as a standalone HTML page: the outdoor screens laid out
 // where they sit on the world grid, then every interior on its own. Cells
-// keep their characters and CGA colours. The page can outline solid
+// keep their characters and colours. The page can outline solid
 // cells and trigger tiles, and zoom.
 
-import { at } from '@fq2js/engine/assert';
-import { RGB, type Color } from '@fq2js/engine/screen';
+import { COLOR_COUNT, rgb, type Color } from '@fq2js/engine/screen';
 import { KINDS, MAP_HEIGHT, MAP_WIDTH, gridPosition, type MapCell, type World } from '@fq2js/engine/world';
 
 export interface RenderOptions {
@@ -15,12 +14,10 @@ export interface RenderOptions {
     triggers?: ReadonlyMap<number, ReadonlySet<string>>;
 }
 
-const HEX = '0123456789ABCDEF';
-
 const escapeHtml = (text: string): string => text.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
 
 const css = (c: Color): string => {
-    const [r, g, b] = at(RGB, c);
+    const [r, g, b] = rgb(c);
     return `rgb(${r},${g},${b})`;
 };
 
@@ -46,7 +43,7 @@ function renderScreen(world: World, screen: number, triggers: ReadonlySet<string
         };
         for (let x = 1; x <= MAP_WIDTH; x++) {
             const cell: MapCell = world.cell(screen, x, y);
-            const cls = `f${HEX.charAt(cell.fg)} b${HEX.charAt(cell.bg)}${cell.solid ? ' s' : ''}`;
+            const cls = `f${cell.fg} b${cell.bg}${cell.solid ? ' s' : ''}`;
             if (triggers?.has(`${x},${y}`)) {
                 flush();
                 line += `<span class="${cls} t" title="Trigger at ${x},${y}">${escapeHtml(cell.ch)}</span>`;
@@ -91,7 +88,7 @@ export function renderHtml(world: World, { title = 'Final Quest 2 — World', sc
         ? `<section><h2>Interiors</h2><div class="rooms">${indoor.map((n) => figure(world, n, triggers)).join('')}</div></section>`
         : '';
 
-    const colours = Array.from({ length: 16 }, (_, c) => `.f${HEX.charAt(c)}{color:${css(c)}}`).join('') + Array.from({ length: 8 }, (_, c) => `.b${HEX.charAt(c)}{background:${css(c)}}`).join('');
+    const colours = Array.from({ length: COLOR_COUNT }, (_, c) => `.f${c}{color:${css(c)}}.b${c}{background:${css(c)}}`).join('');
 
     return `<!doctype html>
 <html lang="en">

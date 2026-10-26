@@ -7,16 +7,19 @@ import type { Screen } from '@fq2js/engine/screen';
 import { KINDS, MAP_HEIGHT, MAP_KINDS, MAP_WIDTH, TERRAINS, TERRAIN_CODES, type GameMap, type MapCell, type Terrain, type World } from '@fq2js/engine/world';
 import { isMouse, type Key, type MouseInput, type Terminal } from '@fq2js/engine/terminal';
 import { pickCharacter } from './picker.ts';
+import { inkOn, pickColor, type ColorSide } from './color-picker.ts';
 
-const HEX = '0123456789ABCDEF';
 const UNDO_LIMIT = 200;
 
 // The palette on row 24: the brush (click for the character picker), the 16
-// foreground and 8 background colours (two cells each), and hard/soft.
+// foreground colours (two cells each) and background colours (one each),
+// and hard/soft. Clicking "fg" or "bg" opens the picker of all 256.
 const PALETTE_ROW = 24;
 const BRUSH_X = 7;
 const FG_X = 13;
+const FG_LABEL_X = FG_X - 3;
 const BG_X = 49;
+const BG_LABEL_X = BG_X - 3;
 const HARD_X = 67;
 const TERRAIN_X = 72;
 
@@ -61,6 +64,7 @@ export const SCREEN_HELP = [
     '{white}Space   {gray}paint the brush here           {white}P {gray}pen: paint as you move',
     '{white}C       {gray}pick the brush character       {white}E {gray}take the brush from this cell',
     '{white}F / f   {gray}next / previous foreground     {white}B / b {gray}next / previous background',
+    '{white}A       {gray}all 256 colours (Tab: foreground or background)',
     "{white}H       {gray}brush is hard (solid) or soft  {white}G {gray}the brush's terrain (ground)",
     '{white}V       {gray}start / cancel a selection. With one: {white}Space {gray}fills it, {white}Y {gray}copies it',
     '{white}S       {gray}stamp what was copied here (top left corner)',
@@ -73,10 +77,12 @@ export const SCREEN_HELP = [
     '{white}Left    {gray}paint (drag to paint a stroke; a stroke is one undo)',
     '{white}Right   {gray}drag to select           {white}Middle {gray}take the brush from a cell',
     '{white}Bottom row {gray}click the brush for the character picker, a colour to use it,',
-    '           {gray}or HARD/SOFT to switch',
+    '           {gray}fg or bg for all 256, or HARD/SOFT to switch',
 ];
 
-const describeCell = (c: MapCell): string => `fg ${HEX.charAt(c.fg)} bg ${HEX.charAt(c.bg)} ${c.solid ? 'hard' : 'soft'} ${c.terrain}`;
+// A colour as the map files have it: one hex digit, or two past F.
+const hex = (c: number): string => c.toString(16).toUpperCase();
+const describeCell = (c: MapCell): string => `fg ${hex(c.fg)} bg ${hex(c.bg)} ${c.solid ? 'hard' : 'soft'} ${c.terrain}`;
 
 export class ScreenEditor {
     private readonly term: Terminal;
@@ -181,10 +187,13 @@ export class ScreenEditor {
                 this.message = 'Took the brush from this cell.';
                 break;
             case 'f':
-                s.brush = { ...s.brush, fg: (s.brush.fg + (key === 'F' ? 1 : 15)) % 16 };
+                s.brush = { ...s.brush, fg: ((s.brush.fg % 16) + (key === 'F' ? 1 : 15)) % 16 };
                 break;
             case 'b':
-                s.brush = { ...s.brush, bg: (s.brush.bg + (key === 'B' ? 1 : 7)) % 8 };
+                s.brush = { ...s.brush, bg: ((s.brush.bg % 16) + (key === 'B' ? 1 : 15)) % 16 };
+                break;
+            case 'a':
+                await this.pickColor('fg');
                 break;
             case 'g':
                 s.brush = { ...s.brush, terrain: nextTerrain(s.brush.terrain) };
@@ -274,14 +283,26 @@ export class ScreenEditor {
             if (ch !== null) {
                 s.brush = { ...s.brush, ch };
             }
+        } else if (x === FG_LABEL_X || x === FG_LABEL_X + 1) {
+            await this.pickColor('fg');
+        } else if (x === BG_LABEL_X || x === BG_LABEL_X + 1) {
+            await this.pickColor('bg');
         } else if (x >= FG_X && x < FG_X + 32) {
             s.brush = { ...s.brush, fg: Math.floor((x - FG_X) / 2) };
         } else if (x >= BG_X && x < BG_X + 16) {
-            s.brush = { ...s.brush, bg: Math.floor((x - BG_X) / 2) };
+            s.brush = { ...s.brush, bg: x - BG_X };
         } else if (x >= HARD_X && x < HARD_X + 4) {
             s.brush = { ...s.brush, solid: !s.brush.solid };
         } else if (x >= TERRAIN_X) {
             s.brush = { ...s.brush, terrain: nextTerrain(s.brush.terrain) };
+        }
+    }
+
+    // Picks one of the brush's colours from all 256.
+    private async pickColor(side: ColorSide): Promise<void> {
+        const picked = await pickColor(this.term, this.state.brush, side);
+        if (picked !== null) {
+            this.state.brush = { ...this.state.brush, [picked.side]: picked.color };
         }
     }
 
@@ -459,7 +480,7 @@ export class ScreenEditor {
                     [fg, bg] = TERRAIN_LOOK[c.terrain];
                 }
                 if (sel && x >= sel.left && x <= sel.right && y >= sel.top && y <= sel.bottom) {
-                    [fg, bg] = [bg, fg % 8];
+                    [fg, bg] = [bg, fg];
                 }
                 screen.put(x, y, ch, fg, bg, blink && this.triggers.has(`${x},${y}`));
             }
@@ -483,22 +504,17 @@ export class ScreenEditor {
         screen.fillRow(PALETTE_ROW, 0);
         screen.text(1, PALETTE_ROW, 'Brush', 7, 0);
         screen.put(BRUSH_X, PALETTE_ROW, b.ch, b.fg, b.bg);
-        screen.text(FG_X - 3, PALETTE_ROW, 'fg', 7, 0);
+        // (A colour past the 16 shows beside its label.)
+        screen.text(FG_LABEL_X, PALETTE_ROW, 'fg', b.fg > 15 ? inkOn(b.fg) : 7, b.fg > 15 ? b.fg : 0);
         for (let c = 0; c < 16; c++) {
             const x = FG_X + c * 2;
             const chosen = c === b.fg;
-            screen.put(x, PALETTE_ROW, HEX.charAt(c), chosen ? 0 : c === 0 ? 8 : c, chosen ? 7 : 0);
+            screen.put(x, PALETTE_ROW, hex(c), chosen ? 0 : c === 0 ? 8 : c, chosen ? 7 : 0);
             screen.put(x + 1, PALETTE_ROW, '█', c, chosen ? 7 : 0);
         }
-        screen.text(BG_X - 3, PALETTE_ROW, 'bg', 7, 0);
-        for (let c = 0; c < 8; c++) {
-            const x = BG_X + c * 2;
-            const ink = c === 7 || c === 3 ? 0 : 15;
-            if (c === b.bg) {
-                screen.text(x, PALETTE_ROW, '<>', ink, c);
-            } else {
-                screen.text(x, PALETTE_ROW, c === 0 ? '··' : '  ', 8, c);
-            }
+        screen.text(BG_LABEL_X, PALETTE_ROW, 'bg', b.bg > 15 ? inkOn(b.bg) : 7, b.bg > 15 ? b.bg : 0);
+        for (let c = 0; c < 16; c++) {
+            screen.put(BG_X + c, PALETTE_ROW, c === b.bg ? '•' : c === 0 ? '·' : ' ', c === b.bg ? inkOn(c) : 8, c);
         }
         screen.text(HARD_X, PALETTE_ROW, b.solid ? 'HARD' : 'SOFT', b.solid ? 12 : 10, 0);
         const [tfg, tbg] = TERRAIN_LOOK[b.terrain];
