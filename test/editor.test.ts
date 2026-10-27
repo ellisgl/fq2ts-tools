@@ -9,7 +9,7 @@ import { main as edit } from '../src/edit.ts';
 import { contentTriggers, type GameFiles, type TriggerTiles } from '../src/game.ts';
 import type { Terminal } from '@fq2ts/engine/terminal';
 import { bestiary, content, FIXTURE_DATA } from '@fq2ts/engine/fixture';
-import { World, blankMap, type MapCell } from '@fq2ts/engine/world';
+import { MAP_HEIGHT, MAP_WIDTH, World, blankMap, type MapCell } from '@fq2ts/engine/world';
 import { caught, FakeTerminal, makeMap, makeWorld, mouse, row, screenText, tempDir, typed, type Step } from '@fq2ts/engine/testing';
 
 // The edit command, on the fixture's maps (unless told otherwise).
@@ -629,6 +629,14 @@ describe('Editor overview', () => {
         expect(no.world.kind(2)).toBe(2);
         const yes = await runOverview(['c', 'right', 'v', 'y', 'q', 'n']);
         expect(yes.world.kind(2)).toBe(1);
+    });
+
+    test("pasting keeps each screen's own trigger characters", async () => {
+        const marks = (ch: string | null): (string | null)[][] => Array.from({ length: MAP_HEIGHT }, () => Array.from({ length: MAP_WIDTH }, () => ch));
+        const world = makeWorld({ ...makeMap(1, 1), triggers: marks('A') }, { ...makeMap(2, 2), triggers: marks('B') }, makeMap(82, 5));
+        await runOverview(['c', 'right', 'v', 'y', 'right', 'v', 'q', 'n'], { world });
+        expect(world.trigger(2, 1, 1)).toBe('B');
+        expect(world.trigger(3, 1, 1)).toBeNull();
     });
 
     test('V with nothing copied, and C on an empty spot', async () => {

@@ -5,7 +5,7 @@
     "": {
       "name": "@fq2ts/tools",
       "dependencies": {
-        "@fq2ts/engine": "github:ellisgl/fq2ts-engine#v0.1.0",
+        "@fq2ts/engine": "github:ellisgl/fq2ts-engine#v0.5.0",
       },
       "devDependencies": {
         "@stylistic/eslint-plugin": "^2.9.0",
@@ -35,7 +35,7 @@
 
     "@eslint/plugin-kit": ["@eslint/plugin-kit@0.7.3", "", { "dependencies": { "@eslint/core": "^1.2.1", "levn": "^0.4.1" } }, "sha512-IkO+/KEUvwbVpiURZg+P7zF74z5Jxe0UgJxVni+RtoHQ6IZieXaO02kmadomap/q+l6bc/jdPGGqTjhuZnuz1Q=="],
 
-    "@fq2ts/engine": ["@fq2ts/engine@github:ellisgl/fq2ts-engine#f8066ac", {}, "ellisgl-fq2ts-engine-f8066ac", "sha512-phjKoFFtPSn9B5qn10oQXrdum+U60XOEWDpdqI3ZyEpSH9ut8fOLe8qX9Q86U2c5exe1+LKTfBcmvORX1HJhuA=="],
+    "@fq2ts/engine": ["@fq2ts/engine@github:ellisgl/fq2ts-engine#430139b", {}, "ellisgl-fq2ts-engine-430139b", "sha512-ocdke94J+x515H4ZM7xAQCyHGVQhNoA1iJudps64cGslg3HxxdHI113tUdy9+jpDWB+ODEdaGyYTZQZUhfMrVA=="],
 
     "@humanfs/core": ["@humanfs/core@0.19.2", "", { "dependencies": { "@humanfs/types": "^0.15.0" } }, "sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA=="],
 

@@ -389,6 +389,11 @@ export function generate(world: World, screens: readonly number[], { seed }: Gen
         stitch(world, screen, grid, generated);
         connect(grid);
         const map = blankMap(screen, world.kind(screen) ?? 1);
+        // (Keeping a screen's trigger characters: its scripts still need them.)
+        const triggers = world.has(screen) ? world.export(screen).triggers : undefined;
+        if (triggers) {
+            map.triggers = triggers;
+        }
         grid.forEach((row, y) => {
             row.forEach((c, x) => {
                 at(map.tiles, y)[x] = c.ch;

@@ -281,7 +281,11 @@ export class Editor {
         if (this.world.has(this.current) && !(await this.ask(`Replace screen ${this.current}${this.scriptsNote(this.current)}? (Y/N)`))) {
             return;
         }
-        this.world.put({ ...this.copied, screen: this.current });
+        // (The trigger characters stay with each screen, as its scripts do.)
+        const pasted = { ...this.copied, screen: this.current };
+        delete pasted.triggers;
+        const triggers = this.world.has(this.current) ? this.world.export(this.current).triggers : undefined;
+        this.world.put({ ...pasted, ...(triggers ? { triggers } : {}) });
         this.changed();
         this.message = `Pasted screen ${this.copied.screen} onto ${this.current}.`;
     }

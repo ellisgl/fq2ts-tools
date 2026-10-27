@@ -225,6 +225,16 @@ describe('generate', () => {
         expect(nearSea).toBeGreaterThan(nearField * 2);
     });
 
+    test("keeps a screen's trigger characters", () => {
+        const { world, screens } = block(LAND);
+        const map = world.export(163);
+        map.triggers = Array.from({ length: MAP_HEIGHT }, (_, y) => Array.from({ length: MAP_WIDTH }, (_, x) => (x === 4 && y === 5 ? 'D' : null)));
+        world.put(map);
+        generate(world, screens, { seed: 1 });
+        expect(world.trigger(163, 5, 6)).toBe('D');
+        expect(world.trigger(164, 5, 6)).toBeNull();
+    });
+
     test('refuses missing screens and interiors', () => {
         const world = makeWorld(makeMap(1, 2));
         expect(() => generate(world, [5], { seed: 1 })).toThrow("Screen 5 doesn't exist");
