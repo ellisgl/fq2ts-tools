@@ -4,7 +4,7 @@
 // cells and trigger tiles, and zoom.
 
 import { COLOR_COUNT, rgb, type Color } from '@fq2ts/engine/screen';
-import { KINDS, MAP_HEIGHT, MAP_WIDTH, gridPosition, type MapCell, type World } from '@fq2ts/engine/world';
+import { KINDS, gridPosition, type MapCell, type World } from '@fq2ts/engine/world';
 import type { TriggerTiles } from './game.ts';
 
 export interface RenderOptions {
@@ -32,7 +32,7 @@ function screenLabel(world: World, screen: number): string {
 // One screen as a <pre>, with runs of same-looking cells in one span.
 function renderScreen(world: World, screen: number, triggers: TriggerTiles | undefined): string {
     const lines: string[] = [];
-    for (let y = 1; y <= MAP_HEIGHT; y++) {
+    for (let y = 1; y <= world.height; y++) {
         let line = '';
         let run = '';
         let runClass = '';
@@ -42,7 +42,7 @@ function renderScreen(world: World, screen: number, triggers: TriggerTiles | und
             }
             run = '';
         };
-        for (let x = 1; x <= MAP_WIDTH; x++) {
+        for (let x = 1; x <= world.width; x++) {
             const cell: MapCell = world.cell(screen, x, y);
             const cls = `f${cell.fg} b${cell.bg}${cell.solid ? ' s' : ''}`;
             if (triggers?.has(`${x},${y}`)) {

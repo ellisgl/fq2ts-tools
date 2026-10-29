@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { GRID_HEIGHT, GRID_WIDTH, World } from '@fq2ts/engine/world';
 import { renderHtml } from './html.ts';
-import type { GameFiles } from './game.ts';
+import { gameMapSize, type GameFiles } from './game.ts';
 
 const USAGE = `Usage: view [options]
 
@@ -58,7 +58,7 @@ export function main(args: readonly string[], game: GameFiles, log: (line: strin
         log(USAGE);
         return 0;
     }
-    const world = World.load(values.maps);
+    const world = World.load(values.maps, gameMapSize(game));
     const html = renderHtml(world, {
         ...(values.screens === undefined ? {} : { screens: parseScreenList(values.screens) }),
         ...(values['no-triggers'] || !game.triggers ? {} : { triggers: game.triggers }),

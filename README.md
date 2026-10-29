@@ -5,8 +5,11 @@ level editor in the terminal, a terrain generator, and `art`, which exports
 screens to [Icy Draw](https://github.com/mkrueger/icy_tools/blob/master/crates/icy_draw/README.md)
 and imports them back (a layer each for the look, terrain, solid cells and
 trigger characters; see [art.ts](src/art.ts)). Each tool's `main` takes the
-game's `GameFiles` (its map folder, and the trigger tiles and encounter
-tables to show); see Final Quest 2's [tools/](https://github.com/ellisgl/final-quest-2/tree/main/tools).
+game's `GameFiles` (its map folder, its `screen` size if it isn't 80x25,
+and the trigger tiles and encounter tables to show); see Final Quest 2's
+[tools/](https://github.com/ellisgl/final-quest-2/tree/main/tools). The
+maps are read and made at the game's map size, and the editor needs a
+terminal the game's size (`new Terminal({ size: screen })`).
 
 Rows and columns count from 1, as in the engine: the editor's top left
 cell is 1,1. Icy Draw counts from 0, so a cell it shows as 8,8 is 9,9 in

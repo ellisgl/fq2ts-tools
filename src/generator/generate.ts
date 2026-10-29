@@ -10,7 +10,7 @@
 // to the rest.
 
 import { at, cellAt } from '@fq2ts/engine/assert';
-import { MAP_HEIGHT, MAP_WIDTH, GRID_WIDTH, GRID_HEIGHT, blankMap, gridPosition, type MapCell, type MapKind, type World } from '@fq2ts/engine/world';
+import { MAP_SIZE, GRID_WIDTH, GRID_HEIGHT, blankMap, gridPosition, type MapCell, type MapKind, type MapSize, type World } from '@fq2ts/engine/world';
 import { fbm, random, smoothstep } from './noise.ts';
 
 export interface GenerateOptions {
@@ -44,10 +44,11 @@ const isWaterCell = (c: MapCell): boolean => c.bg === 1 && (c.ch === ' ' || c.ch
 
 // ---- Where things are in the world
 
-// World coordinates of a cell: 0-based, across the whole grid of screens.
-export function worldPoint(screen: number, x: number, y: number): { X: number; Y: number } {
+// World coordinates of a cell: 0-based, across the whole grid of screens
+// (each `size`: the game's map).
+export function worldPoint(screen: number, x: number, y: number, { width, height }: MapSize = MAP_SIZE): { X: number; Y: number } {
     const { col, row } = gridPosition(screen);
-    return { X: (col - 1) * MAP_WIDTH + (x - 1), Y: (row - 1) * MAP_HEIGHT + (y - 1) };
+    return { X: (col - 1) * width + (x - 1), Y: (row - 1) * height + (y - 1) };
 }
 
 // ---- The terrain fields
@@ -82,15 +83,16 @@ export class Terrain {
         }
         let share = this.measured.get(screen);
         if (share === undefined) {
+            const { width, height } = this.world;
             let water = 0;
-            for (let y = 1; y <= MAP_HEIGHT; y++) {
-                for (let x = 1; x <= MAP_WIDTH; x++) {
+            for (let y = 1; y <= height; y++) {
+                for (let x = 1; x <= width; x++) {
                     if (isWaterCell(this.world.cell(screen, x, y))) {
                         water++;
                     }
                 }
             }
-            share = water / (MAP_WIDTH * MAP_HEIGHT);
+            share = water / (width * height);
             this.measured.set(screen, share);
         }
         return share;
@@ -127,8 +129,9 @@ export class Terrain {
     // How watery a point is: the kinds of the nearby screens blended between
     // their centres, roughened with noise. Above 0.5 is water.
     public waterness(X: number, Y: number): number {
-        const u = (X - (MAP_WIDTH - 1) / 2) / MAP_WIDTH;
-        const v = (Y - (MAP_HEIGHT - 1) / 2) / MAP_HEIGHT;
+        const { width, height } = this.world;
+        const u = (X - (width - 1) / 2) / width;
+        const v = (Y - (height - 1) / 2) / height;
         const c0 = Math.floor(u);
         const r0 = Math.floor(v);
         const tx = u - c0;
@@ -169,15 +172,16 @@ export class Terrain {
         if (kind === undefined || (!small && !TOWN_KINDS.includes(kind))) {
             return 1;
         }
-        const dx = (x - (MAP_WIDTH + 1) / 2) / (MAP_WIDTH / 2);
-        const dy = (y - (MAP_HEIGHT + 1) / 2) / (MAP_HEIGHT / 2);
+        const { width, height } = this.world;
+        const dx = (x - (width + 1) / 2) / (width / 2);
+        const dy = (y - (height + 1) / 2) / (height / 2);
         const r = Math.sqrt(dx * dx + dy * dy);
         return small ? smoothstep(0.35, 0.8, r) : smoothstep(0.55, 0.95, r);
     }
 
     // The tile for one cell of a screen.
     public cell(screen: number, x: number, y: number): MapCell {
-        const { X, Y } = worldPoint(screen, x, y);
+        const { X, Y } = worldPoint(screen, x, y, this.world.size);
         if (this.isWater(X, Y)) {
             for (let dy = -1; dy <= 1; dy++) {
                 for (let dx = -1; dx <= 1; dx++) {
@@ -208,6 +212,9 @@ export class Terrain {
 
 type Grid = MapCell[][];
 
+// How big a grid is (the game's map).
+const sizeOf = (grid: Grid): MapSize => ({ width: grid[0]?.length ?? 0, height: grid.length });
+
 
 function get(grid: Grid, x: number, y: number): MapCell {
     return cellAt(grid, x, y);
@@ -217,20 +224,21 @@ function set(grid: Grid, x: number, y: number, cell: MapCell): void {
     at(grid, y - 1)[x - 1] = cell;
 }
 
-// The cells of an edge, from the outside in: for each position along the
-// edge, our cells at depth 0, 1, ... and the neighbour's facing cell.
-const EDGES = [
-    { dx: -1, dy: 0, length: MAP_HEIGHT, ours: (i: number, d: number) => [1 + d, i] as const, theirs: (i: number) => [MAP_WIDTH, i] as const },
-    { dx: 1, dy: 0, length: MAP_HEIGHT, ours: (i: number, d: number) => [MAP_WIDTH - d, i] as const, theirs: (i: number) => [1, i] as const },
-    { dx: 0, dy: -1, length: MAP_WIDTH, ours: (i: number, d: number) => [i, 1 + d] as const, theirs: (i: number) => [i, MAP_HEIGHT] as const },
-    { dx: 0, dy: 1, length: MAP_WIDTH, ours: (i: number, d: number) => [i, MAP_HEIGHT - d] as const, theirs: (i: number) => [i, 1] as const },
+// The cells of each edge of a map this size, from the outside in: for each
+// position along the edge, our cells at depth 0, 1, ... and the
+// neighbour's facing cell.
+const edges = ({ width, height }: MapSize) => [
+    { dx: -1, dy: 0, length: height, ours: (i: number, d: number) => [1 + d, i] as const, theirs: (i: number) => [width, i] as const },
+    { dx: 1, dy: 0, length: height, ours: (i: number, d: number) => [width - d, i] as const, theirs: (i: number) => [1, i] as const },
+    { dx: 0, dy: -1, length: width, ours: (i: number, d: number) => [i, 1 + d] as const, theirs: (i: number) => [i, height] as const },
+    { dx: 0, dy: 1, length: width, ours: (i: number, d: number) => [i, height - d] as const, theirs: (i: number) => [i, 1] as const },
 ];
 
 // Makes the edges facing hand-made screens agree with them: open ground and
 // roads carry on in. (Water needs no help: the terrain already counts the
 // hand-made screens' water.)
 function stitch(world: World, screen: number, grid: Grid, generated: ReadonlySet<number>): void {
-    for (const edge of EDGES) {
+    for (const edge of edges(sizeOf(grid))) {
         const neighbour = screen + edge.dx + edge.dy * GRID_WIDTH;
         const { col, row } = gridPosition(screen);
         if (col + edge.dx < 1 || col + edge.dx > GRID_WIDTH || row + edge.dy < 1 || row + edge.dy > GRID_HEIGHT) {
@@ -255,28 +263,30 @@ function stitch(world: World, screen: number, grid: Grid, generated: ReadonlySet
 
 type Point = readonly [number, number];
 const STEPS: readonly Point[] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-const inside = (x: number, y: number): boolean => x >= 1 && x <= MAP_WIDTH && y >= 1 && y <= MAP_HEIGHT;
-const key = (x: number, y: number): number => (y - 1) * MAP_WIDTH + (x - 1);
+// Whether (x, y) is on a grid, and a number for it.
+const inside = (grid: Grid, x: number, y: number): boolean => x >= 1 && x <= sizeOf(grid).width && y >= 1 && y <= grid.length;
+const key = (grid: Grid, x: number, y: number): number => (y - 1) * sizeOf(grid).width + (x - 1);
 
 // The groups of walkable cells that touch each other, biggest first.
 export function walkableAreas(grid: Grid): Point[][] {
     const seen = new Set<number>();
     const areas: Point[][] = [];
-    for (let y = 1; y <= MAP_HEIGHT; y++) {
-        for (let x = 1; x <= MAP_WIDTH; x++) {
-            if (seen.has(key(x, y)) || !walkable(get(grid, x, y))) {
+    const { width, height } = sizeOf(grid);
+    for (let y = 1; y <= height; y++) {
+        for (let x = 1; x <= width; x++) {
+            if (seen.has(key(grid, x, y)) || !walkable(get(grid, x, y))) {
                 continue;
             }
             const area: Point[] = [];
             const queue: Point[] = [[x, y]];
-            seen.add(key(x, y));
+            seen.add(key(grid, x, y));
             for (let next = queue.shift(); next; next = queue.shift()) {
                 area.push(next);
                 for (const [sx, sy] of STEPS) {
                     const nx = next[0] + sx;
                     const ny = next[1] + sy;
-                    if (inside(nx, ny) && !seen.has(key(nx, ny)) && walkable(get(grid, nx, ny))) {
-                        seen.add(key(nx, ny));
+                    if (inside(grid, nx, ny) && !seen.has(key(grid, nx, ny)) && walkable(get(grid, nx, ny))) {
+                        seen.add(key(grid, nx, ny));
                         queue.push([nx, ny]);
                     }
                 }
@@ -293,25 +303,25 @@ function pathBetween(grid: Grid, from: readonly Point[], to: ReadonlySet<number>
     const cameFrom = new Map<number, number>();
     const queue: Point[] = [];
     for (const p of from) {
-        cameFrom.set(key(...p), -1);
+        cameFrom.set(key(grid, ...p), -1);
         queue.push(p);
     }
     for (let next = queue.shift(); next; next = queue.shift()) {
-        const k = key(...next);
+        const k = key(grid, ...next);
         if (to.has(k)) {
             const path: Point[] = [];
             for (let step = k; step !== -1; step = cameFrom.get(step) ?? -1) {
-                path.push([(step % MAP_WIDTH) + 1, Math.floor(step / MAP_WIDTH) + 1]);
+                path.push([(step % sizeOf(grid).width) + 1, Math.floor(step / sizeOf(grid).width) + 1]);
             }
             return path;
         }
         for (const [sx, sy] of STEPS) {
             const nx = next[0] + sx;
             const ny = next[1] + sy;
-            if (!inside(nx, ny) || cameFrom.has(key(nx, ny)) || isWaterCell(get(grid, nx, ny))) {
+            if (!inside(grid, nx, ny) || cameFrom.has(key(grid, nx, ny)) || isWaterCell(get(grid, nx, ny))) {
                 continue;
             }
-            cameFrom.set(key(nx, ny), k);
+            cameFrom.set(key(grid, nx, ny), k);
             queue.push([nx, ny]);
         }
     }
@@ -327,10 +337,11 @@ function connect(grid: Grid): void {
         if (!main) {
             return;
         }
-        const mainKeys = new Set(main.map((p) => key(...p)));
+        const mainKeys = new Set(main.map((p) => key(grid, ...p)));
+        const { width, height } = sizeOf(grid);
         let joined = false;
         for (const area of rest) {
-            const atEdge = area.some(([x, y]) => x === 1 || x === MAP_WIDTH || y === 1 || y === MAP_HEIGHT);
+            const atEdge = area.some(([x, y]) => x === 1 || x === width || y === 1 || y === height);
             if (!atEdge && area.length < POCKET) {
                 for (const [x, y] of area) {
                     set(grid, x, y, STYLE.tree);
@@ -360,8 +371,8 @@ function connect(grid: Grid): void {
 // Screens that are one cell repeated (as made by the editor's N).
 export function isBlank(world: World, screen: number): boolean {
     const first = world.cell(screen, 1, 1);
-    for (let y = 1; y <= MAP_HEIGHT; y++) {
-        for (let x = 1; x <= MAP_WIDTH; x++) {
+    for (let y = 1; y <= world.height; y++) {
+        for (let x = 1; x <= world.width; x++) {
             const c = world.cell(screen, x, y);
             if (c.ch !== first.ch || c.fg !== first.fg || c.bg !== first.bg || c.solid !== first.solid) {
                 return false;
@@ -385,10 +396,10 @@ export function generate(world: World, screens: readonly number[], { seed }: Gen
     const generated = new Set(screens);
     const terrain = new Terrain(world, seed, generated);
     for (const screen of screens) {
-        const grid: Grid = Array.from({ length: MAP_HEIGHT }, (_, y) => Array.from({ length: MAP_WIDTH }, (_, x) => terrain.cell(screen, x + 1, y + 1)));
+        const grid: Grid = Array.from({ length: world.height }, (_, y) => Array.from({ length: world.width }, (_, x) => terrain.cell(screen, x + 1, y + 1)));
         stitch(world, screen, grid, generated);
         connect(grid);
-        const map = blankMap(screen, world.kind(screen) ?? 1);
+        const map = blankMap(screen, world.kind(screen) ?? 1, undefined, world.size);
         // (Keeping a screen's trigger characters: its scripts still need them.)
         const triggers = world.has(screen) ? world.export(screen).triggers : undefined;
         if (triggers) {

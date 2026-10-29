@@ -9,7 +9,7 @@
     "./*": "./src/*.ts"
   },
   "dependencies": {
-    "@fq2ts/engine": "github:ellisgl/fq2ts-engine#v0.13.2"
+    "@fq2ts/engine": "github:ellisgl/fq2ts-engine#v0.14.0"
   },
   "scripts": {
     "test": "bun test",

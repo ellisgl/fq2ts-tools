@@ -275,7 +275,7 @@ export class Editor {
             return false;
         }
         const kind = at(MAP_KINDS, choice);
-        this.world.put(blankMap(this.current, kind, FILL[kind]));
+        this.world.put(blankMap(this.current, kind, FILL[kind], this.world.size));
         this.changed();
         this.message = `Created screen ${this.current}.`;
         return true;
@@ -316,7 +316,7 @@ export class Editor {
         }
         this.prompt('Name:');
         const old = this.world.name(this.current);
-        const name = (await textInput(this.term, { x: 7, y: 25, length: 31, value: old, fg: 15, bg: 1 })).trim();
+        const name = (await textInput(this.term, { x: 7, y: this.screen.height, length: 31, value: old, fg: 15, bg: 1 })).trim();
         if (name === old) {
             return;
         }
@@ -423,14 +423,18 @@ export class Editor {
     }
 
     private prompt(text: string): void {
-        this.screen.fillRow(25, 0);
-        draw(this.screen, `{yellow}${text}`, { y: 25, bg: 0 });
+        this.screen.fillRow(this.screen.height, 0);
+        draw(this.screen, `{yellow}${text}`, { y: this.screen.height, bg: 0 });
     }
 
     // ---- Drawing
 
+    // The world grid at the top left, and a status line on the bottom row
+    // (row 25, on an 80x25 screen; on a bigger one, what's around the grid
+    // is blank).
     private draw(): void {
         const { screen } = this;
+        screen.clear();
         for (let n = 1; n <= GRID_WIDTH * GRID_HEIGHT; n++) {
             const { col, row } = gridPosition(n);
             const kind = this.world.kind(n);
@@ -441,7 +445,6 @@ export class Editor {
                 screen.put(col, row, ch, fg, bg);
             }
         }
-        screen.fillRow(25, 0);
         const kind = this.world.kind(this.current);
         const table = this.world.encounters(this.current);
         const monsters = kind !== undefined && KINDS[kind].monsters ? ` {gray}monsters${table === undefined ? '' : `: ${table}`}` : '';
@@ -452,7 +455,7 @@ export class Editor {
         const name = this.world.name(this.current);
         const about = `{white}Screen ${this.current}${name ? ` {yellow}${escapeMarkup(name)}{white},` : ''} ${what}${this.modified ? ' {lightred}*' : ''}`;
         const status = this.message === null ? about + this.hints(width(about)) : `{yellow}${this.message}`;
-        draw(screen, status, { y: 25, bg: 0 });
+        draw(screen, status, { y: screen.height, bg: 0 });
         const { col, row } = gridPosition(this.current);
         screen.cursor = { x: col, y: row };
     }
@@ -460,7 +463,7 @@ export class Editor {
     // As many key hints as fit after `used` columns, the most useful first,
     // always ending with "? help" (or none at all, if even that won't fit).
     private hints(used: number): string {
-        const fits = (keys: readonly string[]): boolean => used + width(`   ${[...keys, '? help'].join('  ')}`) <= 80;
+        const fits = (keys: readonly string[]): boolean => used + width(`   ${[...keys, '? help'].join('  ')}`) <= this.screen.width;
         const keys: string[] = [];
         for (const key of HINTS) {
             if (fits([...keys, key])) {

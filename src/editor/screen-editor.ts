@@ -4,7 +4,7 @@
 import { at } from '@fq2ts/engine/assert';
 import { draw, escapeMarkup } from '@fq2ts/engine/text';
 import type { Screen } from '@fq2ts/engine/screen';
-import { KINDS, MAP_HEIGHT, MAP_KINDS, MAP_WIDTH, TERRAINS, TERRAIN_CODES, type GameMap, type MapCell, type Terrain, type World } from '@fq2ts/engine/world';
+import { KINDS, MAP_KINDS, TERRAINS, TERRAIN_CODES, type GameMap, type MapCell, type Terrain, type World } from '@fq2ts/engine/world';
 import { isMouse, type Key, type MouseInput, type Terminal } from '@fq2ts/engine/terminal';
 import { pickCharacter } from './picker.ts';
 import { inkOn, pickColor, type ColorSide } from './color-picker.ts';
@@ -12,10 +12,11 @@ import { triggerAbout, type TriggerTiles } from '../game.ts';
 
 const UNDO_LIMIT = 200;
 
-// The palette on row 24: the brush (click for the character picker), the 16
-// foreground colours (two cells each) and background colours (one each),
-// and hard/soft. Clicking "fg" or "bg" opens the picker of all 256.
-const PALETTE_ROW = 24;
+// Under the map: a line about the cell under the cursor (row 23 on an
+// 80x25 screen), the palette (24), and messages (25). The palette has the
+// brush (click for the character picker), the 16 foreground colours (two
+// cells each) and background colours (one each), and hard/soft. Clicking
+// "fg" or "bg" opens the picker of all 256.
 const BRUSH_X = 7;
 const FG_X = 13;
 const FG_LABEL_X = FG_X - 3;
@@ -114,6 +115,9 @@ export class ScreenEditor {
         this.term = term;
         this.screen = term.screen;
         this.world = world;
+        if (this.screen.width < world.width + 1 || this.screen.height < world.height + 3) {
+            throw new Error(`The editor needs a ${world.width + 1}x${world.height + 3} screen for ${world.width}x${world.height} maps, but its terminal's is ${this.screen.width}x${this.screen.height}.`);
+        }
         this.number = screen;
         this.state = state;
         this.triggers = triggers;
@@ -243,7 +247,7 @@ export class ScreenEditor {
             this.dragging = null;
             return;
         }
-        const onMap = m.x >= 1 && m.x <= MAP_WIDTH && m.y >= 1 && m.y <= MAP_HEIGHT;
+        const onMap = m.x >= 1 && m.x <= this.world.width && m.y >= 1 && m.y <= this.world.height;
         if (m.action === 'drag') {
             if (this.dragging === 'paint' && onMap) {
                 for (const [x, y] of line(this.last, m)) {
@@ -252,12 +256,12 @@ export class ScreenEditor {
                 this.last = { x: m.x, y: m.y };
                 [this.x, this.y] = [m.x, m.y];
             } else if (this.dragging === 'select') {
-                this.x = Math.min(MAP_WIDTH, Math.max(1, m.x));
-                this.y = Math.min(MAP_HEIGHT, Math.max(1, m.y));
+                this.x = Math.min(this.world.width, Math.max(1, m.x));
+                this.y = Math.min(this.world.height, Math.max(1, m.y));
             }
             return;
         }
-        if (m.y === PALETTE_ROW) {
+        if (m.y === this.paletteRow) {
             await this.clickPalette(m.x);
             return;
         }
@@ -314,19 +318,19 @@ export class ScreenEditor {
         if (key === 'up') {
             this.y = Math.max(1, this.y - 1);
         } else if (key === 'down') {
-            this.y = Math.min(MAP_HEIGHT, this.y + 1);
+            this.y = Math.min(this.world.height, this.y + 1);
         } else if (key === 'left') {
             this.x = Math.max(1, this.x - 1);
         } else if (key === 'right') {
-            this.x = Math.min(MAP_WIDTH, this.x + 1);
+            this.x = Math.min(this.world.width, this.x + 1);
         } else if (key === 'home') {
             this.x = 1;
         } else if (key === 'end') {
-            this.x = MAP_WIDTH;
+            this.x = this.world.width;
         } else if (key === 'pageup') {
             this.y = 1;
         } else {
-            this.y = MAP_HEIGHT;
+            this.y = this.world.height;
         }
         if (this.pen) {
             this.paintHere();
@@ -425,7 +429,7 @@ export class ScreenEditor {
             row.forEach((cell, dx) => {
                 const x = this.x + dx;
                 const y = this.y + dy;
-                if (x <= MAP_WIDTH && y <= MAP_HEIGHT) {
+                if (x <= this.world.width && y <= this.world.height) {
                     this.world.setCell(this.number, x, y, cell);
                 }
             });
@@ -466,12 +470,24 @@ export class ScreenEditor {
 
     // ---- Drawing
 
+    private get infoRow(): number {
+        return this.screen.height - 2;
+    }
+
+    private get paletteRow(): number {
+        return this.screen.height - 1;
+    }
+
+    private get messageRow(): number {
+        return this.screen.height;
+    }
+
     private draw(): void {
         const { screen, world } = this;
         const sel = this.selection();
         const blink = this.state.showTriggers;
-        for (let y = 1; y <= MAP_HEIGHT; y++) {
-            for (let x = 1; x <= MAP_WIDTH; x++) {
+        for (let y = 1; y <= this.world.height; y++) {
+            for (let x = 1; x <= this.world.width; x++) {
                 const c = world.cell(this.number, x, y);
                 let ch = c.ch;
                 let fg = c.fg;
@@ -488,7 +504,7 @@ export class ScreenEditor {
                 }
                 screen.put(x, y, ch, fg, bg, blink && this.triggers.has(`${x},${y}`));
             }
-            screen.put(80, y, ' ', 7, 0);
+            screen.put(world.width + 1, y, ' ', 7, 0);
         }
         this.drawStatus();
         screen.cursor = { x: this.x, y: this.y };
@@ -501,34 +517,34 @@ export class ScreenEditor {
         const b = this.state.brush;
         const trigger = this.triggers.has(`${this.x},${this.y}`) ? ' {yellow}trigger' : '';
 
-        screen.fillRow(23, 1);
-        draw(screen, `{white}Screen ${this.number} {lightcyan}${KINDS[kind].name}{white}  ${this.x},${this.y}  under cursor: ${describeCell(here)}${trigger}`, { y: 23, bg: 1 });
+        screen.fillRow(this.infoRow, 1);
+        draw(screen, `{white}Screen ${this.number} {lightcyan}${KINDS[kind].name}{white}  ${this.x},${this.y}  under cursor: ${describeCell(here)}${trigger}`, { y: this.infoRow, bg: 1 });
 
         // The palette.
-        screen.fillRow(PALETTE_ROW, 0);
-        screen.text(1, PALETTE_ROW, 'Brush', 7, 0);
-        screen.put(BRUSH_X, PALETTE_ROW, b.ch, b.fg, b.bg);
+        screen.fillRow(this.paletteRow, 0);
+        screen.text(1, this.paletteRow, 'Brush', 7, 0);
+        screen.put(BRUSH_X, this.paletteRow, b.ch, b.fg, b.bg);
         // (A colour past the 16 shows beside its label.)
-        screen.text(FG_LABEL_X, PALETTE_ROW, 'fg', b.fg > 15 ? inkOn(b.fg) : 7, b.fg > 15 ? b.fg : 0);
+        screen.text(FG_LABEL_X, this.paletteRow, 'fg', b.fg > 15 ? inkOn(b.fg) : 7, b.fg > 15 ? b.fg : 0);
         for (let c = 0; c < 16; c++) {
             const x = FG_X + c * 2;
             const chosen = c === b.fg;
-            screen.put(x, PALETTE_ROW, hex(c), chosen ? 0 : c === 0 ? 8 : c, chosen ? 7 : 0);
-            screen.put(x + 1, PALETTE_ROW, '█', c, chosen ? 7 : 0);
+            screen.put(x, this.paletteRow, hex(c), chosen ? 0 : c === 0 ? 8 : c, chosen ? 7 : 0);
+            screen.put(x + 1, this.paletteRow, '█', c, chosen ? 7 : 0);
         }
-        screen.text(BG_LABEL_X, PALETTE_ROW, 'bg', b.bg > 15 ? inkOn(b.bg) : 7, b.bg > 15 ? b.bg : 0);
+        screen.text(BG_LABEL_X, this.paletteRow, 'bg', b.bg > 15 ? inkOn(b.bg) : 7, b.bg > 15 ? b.bg : 0);
         for (let c = 0; c < 16; c++) {
-            screen.put(BG_X + c, PALETTE_ROW, c === b.bg ? '•' : c === 0 ? '·' : ' ', c === b.bg ? inkOn(c) : 8, c);
+            screen.put(BG_X + c, this.paletteRow, c === b.bg ? '•' : c === 0 ? '·' : ' ', c === b.bg ? inkOn(c) : 8, c);
         }
-        screen.text(HARD_X, PALETTE_ROW, b.solid ? 'HARD' : 'SOFT', b.solid ? 12 : 10, 0);
+        screen.text(HARD_X, this.paletteRow, b.solid ? 'HARD' : 'SOFT', b.solid ? 12 : 10, 0);
         const [tfg, tbg] = TERRAIN_LOOK[b.terrain];
-        screen.text(TERRAIN_X, PALETTE_ROW, b.terrain.slice(0, 8), tfg, tbg);
+        screen.text(TERRAIN_X, this.paletteRow, b.terrain.slice(0, 8), tfg, tbg);
 
-        screen.fillRow(25, 0);
-        draw(screen, this.message === null ? (this.triggerLine() ?? '{darkgray}? help  Esc back  mouse: left paint, right select, middle pick') : `{yellow}${this.message}`, { y: 25, bg: 0 });
+        screen.fillRow(this.messageRow, 0);
+        draw(screen, this.message === null ? (this.triggerLine() ?? '{darkgray}? help  Esc back  mouse: left paint, right select, middle pick') : `{yellow}${this.message}`, { y: this.messageRow, bg: 0 });
         const flags = [this.pen ? '{lightgreen}PEN' : '', this.anchor ? '{yellow}SEL' : '', this.state.clipboard ? '{gray}CLIP' : ''].filter(Boolean).join(' ');
         if (flags) {
-            draw(screen, `{x 68}${flags}`, { y: 25, bg: 0 });
+            draw(screen, `{x 68}${flags}`, { y: this.messageRow, bg: 0 });
         }
     }
 

@@ -8,7 +8,7 @@ import { parseArgs } from 'node:util';
 import { Terminal } from '@fq2ts/engine/terminal';
 import { World } from '@fq2ts/engine/world';
 import { Editor } from './editor/editor.ts';
-import type { GameFiles } from './game.ts';
+import { gameMapSize, type GameFiles } from './game.ts';
 
 const USAGE = `Usage: edit [options]
 
@@ -17,7 +17,8 @@ const USAGE = `Usage: edit [options]
 
 Press ? in the editor for its keys.`;
 
-export async function main(args: readonly string[], game: GameFiles, term: Terminal = new Terminal(), log: (line: string) => void = console.log): Promise<number> {
+// `term` must be the game's screen size (new Terminal({ size: game.screen })).
+export async function main(args: readonly string[], game: GameFiles, term: Terminal = new Terminal(game.screen ? { size: game.screen } : {}), log: (line: string) => void = console.log): Promise<number> {
     const { values } = parseArgs({
         args: [...args],
         options: {
@@ -30,7 +31,7 @@ export async function main(args: readonly string[], game: GameFiles, term: Termi
         return 0;
     }
     const dir = resolve(values.maps);
-    const world = World.load(dir);
+    const world = World.load(dir, gameMapSize(game));
     const saved: string[] = [];
     const editor = new Editor({
         term,

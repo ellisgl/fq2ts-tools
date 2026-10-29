@@ -3,17 +3,24 @@
 
 import type { FlagRecord } from '@fq2ts/engine/player';
 import { placeTriggers, type Content } from '@fq2ts/engine/game';
-import { isTriggerCode, type World } from '@fq2ts/engine/world';
+import { isTriggerCode, mapSize, type MapSize, type World } from '@fq2ts/engine/world';
+import { DEFAULT_SIZE, type ScreenSize } from '@fq2ts/engine/screen';
 import type { WorldRecord } from '@fq2ts/engine/shared';
 
 export interface GameFiles {
     // The map folder, unless --maps says otherwise.
     maps: string;
+    // The game's screen (its config's `screen`), if it isn't 80x25: its
+    // maps are that less the last column and the bottom three rows.
+    screen?: ScreenSize;
     // The tiles that run scripts, by screen (marked on maps).
     triggers?: ReadonlyMap<number, TriggerTiles>;
     // The names of the encounter tables (offered in the editor).
     encounterTables?: readonly string[];
 }
+
+// The size of a game's maps.
+export const gameMapSize = (game: GameFiles): MapSize => mapSize(game.screen ?? DEFAULT_SIZE);
 
 // One screen's trigger tiles ("x,y"): just which they are, or, as a map,
 // what each one does too (shown in the editor; "" when there's nothing to say).

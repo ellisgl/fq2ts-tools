@@ -23,10 +23,10 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { flatten, readIcy, writeIcy, type Icy, type IcyCell, type IcyLayer } from '@fq2ts/engine/icy';
-import { MAP_HEIGHT, MAP_WIDTH, TERRAINS, TERRAIN_CODES, World, inferTerrain, isTriggerCode, type GameMap, type Terrain } from '@fq2ts/engine/world';
+import { TERRAINS, TERRAIN_CODES, World, inferTerrain, isTriggerCode, sizeOf, type GameMap, type MapSize, type Terrain } from '@fq2ts/engine/world';
 import { at } from '@fq2ts/engine/assert';
 import { parseScreenList } from './view.ts';
-import type { GameFiles } from './game.ts';
+import { gameMapSize, type GameFiles } from './game.ts';
 
 const USAGE = `Usage: art export|import [SCREENS] [options]
 
@@ -58,34 +58,34 @@ const SOLID: IcyCell = { ch: '█', fg: 12, bg: 0, blink: false };
 
 export const icyFileName = (screen: number): string => `${String(screen).padStart(4, '0')}.icy`;
 
-const layer = (title: string, cell: (x: number, y: number) => IcyCell | null, visible = false): IcyLayer => ({
+const layer = ({ width, height }: MapSize, title: string, cell: (x: number, y: number) => IcyCell | null, visible = false): IcyLayer => ({
     title,
     x: 1,
     y: 1,
-    width: MAP_WIDTH,
-    height: MAP_HEIGHT,
+    width,
+    height,
     visible,
     alpha: title !== 'Tiles',
     mode: 'normal',
-    cells: Array.from({ length: MAP_WIDTH * MAP_HEIGHT }, (_, n) => cell((n % MAP_WIDTH) + 1, Math.floor(n / MAP_WIDTH) + 1)),
+    cells: Array.from({ length: width * height }, (_, n) => cell((n % width) + 1, Math.floor(n / width) + 1)),
 });
 
-// A screen as layers.
+// A screen as layers, the size of the map.
 export function exportMap(map: GameMap): Icy {
     const get = <T>(grid: T[][], x: number, y: number): T => at(at(grid, y - 1), x - 1);
+    const size = sizeOf(map);
     return {
-        width: MAP_WIDTH,
-        height: MAP_HEIGHT,
+        ...size,
         background: null,
         layers: [
-            layer('Tiles', (x, y) => ({ ch: get(map.tiles, x, y), fg: get(map.fg, x, y), bg: get(map.bg, x, y), blink: false }), true),
-            layer('Terrain', (x, y) => {
+            layer(size, 'Tiles', (x, y) => ({ ch: get(map.tiles, x, y), fg: get(map.fg, x, y), bg: get(map.bg, x, y), blink: false }), true),
+            layer(size, 'Terrain', (x, y) => {
                 const terrain = get(map.terrain, x, y);
                 const [fg, bg] = TERRAIN_COLORS[terrain];
                 return { ch: TERRAIN_CODES[terrain], fg, bg, blink: false };
             }),
-            layer('Solid', (x, y) => (get(map.solid, x, y) ? SOLID : null)),
-            layer('Triggers', (x, y) => {
+            layer(size, 'Solid', (x, y) => (get(map.solid, x, y) ? SOLID : null)),
+            layer(size, 'Triggers', (x, y) => {
                 const ch = map.triggers ? get(map.triggers, x, y) : null;
                 return ch === null ? null : { ch, fg: 14, bg: 0, blink: false };
             }),
@@ -95,10 +95,12 @@ export function exportMap(map: GameMap): Icy {
 }
 
 // The map with what the layers say: its look, and, where the file has
-// those layers, its terrain, solid cells and triggers.
+// those layers, its terrain, solid cells and triggers. The file must be the
+// map's size.
 export function importMap(icy: Icy, map: GameMap): GameMap {
-    if (icy.width !== MAP_WIDTH || icy.height !== MAP_HEIGHT) {
-        throw new Error(`it's ${icy.width}x${icy.height}, not ${MAP_WIDTH}x${MAP_HEIGHT}`);
+    const { width, height } = sizeOf(map);
+    if (icy.width !== width || icy.height !== height) {
+        throw new Error(`it's ${icy.width}x${icy.height}, not ${width}x${height}`);
     }
     const named = (title: string): IcyLayer | undefined => icy.layers.find((l) => l.title === title);
     // A layer's cell at (x, y) on the screen, wherever the layer sits.
@@ -109,11 +111,11 @@ export function importMap(icy: Icy, map: GameMap): GameMap {
     };
     const marked = (c: IcyCell | null): c is IcyCell => c !== null && !(c.ch === ' ' && c.bg === null);
     const grid = <T>(value: (x: number, y: number) => T): T[][] =>
-        Array.from({ length: MAP_HEIGHT }, (_, y) => Array.from({ length: MAP_WIDTH }, (_, x) => value(x + 1, y + 1)));
+        Array.from({ length: height }, (_, y) => Array.from({ length: width }, (_, x) => value(x + 1, y + 1)));
 
     const picture = flatten({ ...icy, layers: icy.layers.filter((l) => !SPECIAL.includes(l.title)) });
     const look = grid((x, y) => {
-        const c = picture.cells[(y - 1) * MAP_WIDTH + x - 1];
+        const c = picture.cells[(y - 1) * width + x - 1];
         if (!c || c.bg === null) {
             throw new Error(`the cell at ${x},${y} is empty: every cell needs a character and colours`);
         }
@@ -184,7 +186,7 @@ export function main(args: readonly string[], game: GameFiles, log: (line: strin
     }
     const maps = resolve(values.maps);
     const dir = resolve(values.dir ?? join(maps, '..', 'art', 'maps'));
-    const world = World.load(maps);
+    const world = World.load(maps, gameMapSize(game));
     const wanted = list === undefined ? null : parseScreenList(list);
 
     if (command === 'export') {

@@ -10,7 +10,7 @@ import { GRID_HEIGHT, GRID_WIDTH, World, gridPosition } from '@fq2ts/engine/worl
 import { generate, isBlank } from './generator/generate.ts';
 import { renderHtml } from './html.ts';
 import { parseScreenList } from './view.ts';
-import type { GameFiles } from './game.ts';
+import { gameMapSize, type GameFiles } from './game.ts';
 
 const USAGE = `Usage: generate [options]
 
@@ -68,7 +68,7 @@ export function main(args: readonly string[], game: GameFiles, log: (line: strin
     }
     const seed = values.seed === undefined ? randomSeed() : Number(values.seed);
     const dir = resolve(values.maps);
-    const world = World.load(dir);
+    const world = World.load(dir, gameMapSize(game));
 
     let screens: number[];
     if (values.screens === undefined) {
