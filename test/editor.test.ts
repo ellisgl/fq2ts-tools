@@ -966,6 +966,46 @@ test('P marks a screen safe from fights between players, or not; interiors alway
     expect(world.isSafe(1)).toBe(false);
 });
 
+test('I marks a screen an inn, or not; the status line says so, and the mark is saved', async () => {
+    const world = makeWorld(makeMap(1, 2));
+    const term = new FakeTerminal();
+    const saved: boolean[] = [];
+    const editor = new Editor({
+        term,
+        world,
+        save: (w) => {
+            saved.push(w.isInn(1));
+            return { written: [], deleted: [] };
+        },
+    });
+    term.feed(
+        'i',
+        () => {
+            expect(row(term.screen, 25)).toBe('Screen 1 is an inn: players can take a room there.');
+            return 'x';
+        },
+        () => {
+            expect(row(term.screen, 25)).toContain('Screen 1 interior inn *');
+            return 's';
+        },
+        'i',
+        () => {
+            expect(row(term.screen, 25)).toBe("Screen 1 isn't an inn now.");
+            return 'right';
+        },
+        // (Nothing to mark where there's no screen.)
+        'i',
+        () => {
+            expect(row(term.screen, 25)).toContain('Screen 2 empty');
+            return 'q';
+        },
+        'n',
+    );
+    await editor.run();
+    expect(saved).toEqual([true]);
+    expect(world.isInn(1)).toBe(false);
+});
+
 describe('encounter tables in the overview', () => {
     test("E cycles a screen's table, and the status line shows it", async () => {
         const world = makeWorld(makeMap(1, 5));
