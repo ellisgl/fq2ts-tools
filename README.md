@@ -8,6 +8,10 @@ trigger characters; see [art.ts](src/art.ts)). Each tool's `main` takes the
 game's `GameFiles` (its map folder, and the trigger tiles and encounter
 tables to show); see Final Quest 2's [tools/](https://github.com/ellisgl/final-quest-2/tree/main/tools).
 
+Rows and columns count from 1, as in the engine: the editor's top left
+cell is 1,1. Icy Draw counts from 0, so a cell it shows as 8,8 is 9,9 in
+the editor, the map files and a game's scripts.
+
 ## Using it
 
 ```sh
