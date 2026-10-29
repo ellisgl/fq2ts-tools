@@ -1006,6 +1006,30 @@ test('I marks a screen an inn, or not; the status line says so, and the mark is 
     expect(world.isInn(1)).toBe(false);
 });
 
+test("H marks a screen the player's home, or not; the status line says so", async () => {
+    const world = makeWorld(makeMap(1, 2));
+    const term = new FakeTerminal();
+    const editor = new Editor({ term, world, save: () => ({ written: [], deleted: [] }) });
+    term.feed(
+        'h',
+        () => {
+            expect(row(term.screen, 25)).toBe('Screen 1 is a home: players sleep safely here, for nothing.');
+            return 'x';
+        },
+        () => {
+            expect(row(term.screen, 25)).toContain('Screen 1 interior home *');
+            return 'h';
+        },
+        () => {
+            expect(row(term.screen, 25)).toBe("Screen 1 isn't a home now.");
+            return 'q';
+        },
+        'n',
+    );
+    await editor.run();
+    expect(world.isHome(1)).toBe(false);
+});
+
 describe('encounter tables in the overview', () => {
     test("E cycles a screen's table, and the status line shows it", async () => {
         const world = makeWorld(makeMap(1, 5));

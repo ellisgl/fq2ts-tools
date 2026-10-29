@@ -81,6 +81,7 @@ export const OVERVIEW_HELP = [
     '{white}A       {gray}name this screen (shown when the player arrives)',
     '{white}P       {gray}make this screen safe from fights between players (or not)',
     '{white}I       {gray}make this screen an inn, where players take a room (or not)',
+    "{white}H       {gray}make this screen the player's home, where they sleep free (or not)",
     '{white}S       {gray}save to the map folder',
     '{white}Q, Esc  {gray}quit',
     '{gray}With the mouse: click a screen to select it, and again to open it.',
@@ -90,7 +91,7 @@ export const OVERVIEW_HELP = [
 ];
 
 // The keys the overview's status line hints at, the most useful first.
-const HINTS = ['Enter edit', 'A name', 'K kind', 'E monsters', 'P safe', 'N new', 'C/V copy', 'D del', 'I inn'];
+const HINTS = ['Enter edit', 'A name', 'K kind', 'E monsters', 'P safe', 'N new', 'C/V copy', 'D del', 'I inn', 'H home'];
 
 export class Editor {
     private readonly term: Terminal;
@@ -216,6 +217,9 @@ export class Editor {
                 break;
             case 'i':
                 this.toggleInn();
+                break;
+            case 'h':
+                this.toggleHome();
                 break;
             case 's':
                 this.save();
@@ -350,6 +354,18 @@ export class Editor {
         this.message = inn ? `Screen ${this.current} is an inn: players can take a room there.` : `Screen ${this.current} isn't an inn now.`;
     }
 
+    // Homes: where, on a server, players leaving the realm sleep safely in
+    // their own bed, for nothing.
+    private toggleHome(): void {
+        if (!this.world.has(this.current)) {
+            return;
+        }
+        const home = !this.world.isHome(this.current);
+        this.world.setHome(this.current, home);
+        this.changed();
+        this.message = home ? `Screen ${this.current} is a home: players sleep safely here, for nothing.` : `Screen ${this.current} isn't a home now.`;
+    }
+
     private nextEncounters(): void {
         if (!this.world.has(this.current)) {
             return;
@@ -431,7 +447,8 @@ export class Editor {
         const monsters = kind !== undefined && KINDS[kind].monsters ? ` {gray}monsters${table === undefined ? '' : `: ${table}`}` : '';
         const safe = kind !== undefined && kind !== 2 && this.world.isSafe(this.current) ? ' {lightgreen}safe' : '';
         const inn = kind !== undefined && this.world.isInn(this.current) ? ' {yellow}inn' : '';
-        const what = kind === undefined ? '{darkgray}empty' : `{lightcyan}${KINDS[kind].name}${monsters}${safe}${inn}`;
+        const home = kind !== undefined && this.world.isHome(this.current) ? ' {yellow}home' : '';
+        const what = kind === undefined ? '{darkgray}empty' : `{lightcyan}${KINDS[kind].name}${monsters}${safe}${inn}${home}`;
         const name = this.world.name(this.current);
         const about = `{white}Screen ${this.current}${name ? ` {yellow}${escapeMarkup(name)}{white},` : ''} ${what}${this.modified ? ' {lightred}*' : ''}`;
         const status = this.message === null ? about + this.hints(width(about)) : `{yellow}${this.message}`;
